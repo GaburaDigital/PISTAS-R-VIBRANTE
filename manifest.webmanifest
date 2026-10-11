@@ -1,0 +1,17 @@
+{
+  "name": "Pistas do R Vibrante",
+  "short_name": "R Vibrante",
+  "description": "Jogo de treino do R vibrante. Demonstração da Brincolar Games com a fonoaudióloga Dálete Cavalcante.",
+  "lang": "pt-BR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#2a1458",
+  "theme_color": "#2a1458",
+  "icons": [
+    { "src": "assets/img/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/img/icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/img/icone-mascara.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

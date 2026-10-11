@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2a1458">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="assets/img/icone-192.png">
+<link rel="apple-touch-icon" href="assets/img/icone-apple.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Pistas do R Vibrante</title>
+<link rel="stylesheet" href="estilo.css">
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.min.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
+</head>
+<body>
+<canvas id="cena" aria-hidden="true"></canvas>
+
+<!-- barra fixa: som, ajuda, pausa -->
+<div id="barra" hidden>
+  <button class="redondo" id="bPausa" aria-label="Pausar" hidden></button>
+  <button class="redondo" id="bMusica" aria-label="Música" aria-pressed="true"></button>
+  <button class="redondo" id="bEfeitos" aria-label="Efeitos sonoros" aria-pressed="true"></button>
+  <button class="redondo" id="bAjuda" aria-label="Ajuda"></button>
+</div>
+
+<!-- abertura -->
+<section class="tela" id="tAbertura">
+  <div class="abertura">
+    <p>Uma realização</p>
+    <div class="logos"><img src="assets/img/logo_dalete.png" alt="Dálete Cavalcante, fonoaudióloga infantil"><img src="assets/img/logo_brincolar.png" alt="Brincolar Games"></div>
+  </div>
+</section>
+
+<section class="tela" id="tCarrega" hidden>
+  <div class="painel estreito"><h2>Carregando</h2><div class="barra-prog"><i id="progCarga"></i></div><p id="txtCarga" class="fraco">Preparando a pista…</p></div>
+</section>
+
+<!-- título -->
+<section class="tela" id="tTitulo" hidden>
+  <div class="titulo">
+    <h1><span>Pistas do</span><b>R Vibrante</b></h1>
+    <p class="demo">Versão de demonstração</p>
+    <div class="coluna">
+      <button class="btn grande pri" data-ir="tPista">Jogar</button>
+      <button class="btn" data-abre="tAjustes">Ajustes</button>
+      <button class="btn" data-abre="tAjuda">Como jogar</button>
+    </div>
+  </div>
+</section>
+
+<section class="tela" id="tPista" hidden>
+  <div class="painel largo"><h2>Escolha a pista</h2><div class="cartoes" id="cartoesPista"></div>
+    <div class="rodape"><button class="btn" data-ir="tTitulo">Voltar</button></div></div>
+</section>
+
+<section class="tela" id="tNivel" hidden>
+  <div class="painel largo"><h2>Escolha o nível</h2><div class="cartoes tres" id="cartoesNivel"></div>
+    <div class="rodape"><button class="btn" data-ir="tPista">Voltar</button></div></div>
+</section>
+
+<section class="tela" id="tPreparar" hidden>
+  <div class="painel"><h2>Vamos preparar o jogo</h2>
+    <div class="prep">
+      <div class="prep-item"><div><b>Microfone</b><span id="prepMicTxt">Usado no exercício de fala.</span></div><button class="btn" id="prepMic">Ligar microfone</button></div>
+      <div class="prep-item" id="prepInclinar" hidden><div><b>Inclinar o aparelho</b><span id="prepIncTxt">Mova o besourinho inclinando o celular para os lados.</span></div><button class="btn" id="prepInc">Ativar</button></div>
+    </div>
+    <div class="rodape"><button class="btn" data-ir="tNivel">Voltar</button><button class="btn grande pri" id="prepJogar">Começar</button></div></div>
+</section>
+
+<!-- HUD -->
+<div id="hud" hidden>
+  <button class="zona" id="zonaE" aria-label="Mover para a esquerda"></button>
+  <button class="zona" id="zonaD" aria-label="Mover para a direita"></button>
+  <div class="hud-topo">
+    <div class="medidor" aria-live="off"><div class="bolinha"><i id="hudBola"></i></div><b id="hudPontos">20</b></div>
+    <div class="trilho"><i id="hudProg"></i><span class="bandeira"></span></div>
+  </div>
+  <div class="efeitos" id="hudEfeitos"></div>
+  <div class="faixa-aviso" id="hudAviso" hidden></div>
+  <div class="contagem" id="hudCont" hidden></div>
+  <div class="textos" id="hudTextos" aria-live="polite"></div>
+  <div class="seta esq" id="setaE" aria-hidden="true"></div>
+  <div class="seta dir" id="setaD" aria-hidden="true"></div>
+  <div class="fps" id="fps" hidden></div>
+</div>
+
+<section class="tela escura" id="tPausa" hidden>
+  <div class="painel estreito"><h2>Pausa</h2><div class="coluna">
+    <button class="btn grande pri" id="pContinuar">Continuar</button>
+    <button class="btn" id="pReiniciar">Recomeçar a pista</button>
+    <button class="btn" data-abre="tAjustes">Ajustes</button>
+    <button class="btn" id="pMenu">Voltar ao menu</button></div></div>
+</section>
+
+<section class="tela escura" id="tFim" hidden>
+  <div class="painel"><h2 id="fimTit"></h2><p id="fimSub" class="fraco"></p>
+    <div class="fim-bola"><div id="fimBola"></div><div><b id="fimPontos"></b><span>tamanho da bola</span><div class="medalhas" id="fimMedalhas"></div></div></div>
+    <div class="fim-palavras" id="fimPalavras"></div>
+    <div class="rodape"><button class="btn" id="fMenu">Voltar ao menu</button><button class="btn grande pri" id="fDeNovo">Jogar de novo</button></div></div>
+</section>
+
+<!-- exercício de fala -->
+<section class="tela escura" id="tExercicio" hidden>
+  <div class="painel ex">
+    <div class="ex-topo">
+      <div class="ex-folha"><canvas id="exFolha" width="256" height="320"></canvas></div>
+      <div class="ex-meio">
+        <div class="ex-palavra" id="exPalavra"></div>
+        <div class="ex-boca" id="exBoca"><svg viewBox="0 0 120 70" aria-hidden="true"><path d="M10 30 Q35 4 60 16 Q85 4 110 30 Q85 66 60 66 Q35 66 10 30Z" fill="#ff5d8f" stroke="#2a1458" stroke-width="4"/><path d="M22 31 Q60 22 98 31 Q60 46 22 31Z" fill="#2a1458"/><ellipse cx="60" cy="43" rx="17" ry="9" fill="#ff8fab"/></svg><span>Vídeo da boquinha em breve</span></div>
+      </div>
+    </div>
+    <div class="ex-passo" id="exPasso"></div>
+  </div>
+</section>
+
+<!-- ajustes -->
+<section class="tela escura" id="tAjustes" hidden>
+  <div class="painel rolavel"><h2>Ajustes</h2>
+    <h3>Som</h3>
+    <label class="linha"><span>Música</span><input type="range" id="aVolMus" min="0" max="1" step="0.05"></label>
+    <label class="linha"><span>Efeitos sonoros</span><input type="range" id="aVolSfx" min="0" max="1" step="0.05"></label>
+    <h3>Controle</h3>
+    <label class="linha"><span>Inclinar o aparelho<small>Só em celular e tablet. Os botões na tela continuam funcionando.</small></span><input type="checkbox" id="aInclinar"></label>
+    <label class="linha"><span>Sensibilidade da inclinação</span><input type="range" id="aSens" min="0.5" max="2" step="0.1"></label>
+    <h3>Exercício de fala</h3>
+    <label class="linha"><span>Quem avalia<small id="aAvaliaTxt"></small></span>
+      <select id="aAvalia"><option value="fono">Fonoaudiólogo dá a nota</option><option value="livre">Sem análise (uso em casa)</option><option value="auto" disabled>Automático (em breve)</option></select></label>
+    <label class="linha"><span>Exercício rápido<small>Para testar a pista: o exercício vira um toque só.</small></span><input type="checkbox" id="aRapido"></label>
+    <label class="linha"><span>Nome do avatar<small>Aparecerá no relatório. Opcional.</small></span><input type="text" id="aNome" maxlength="20" placeholder="Sem nome"></label>
+    <h3>Imagem</h3>
+    <label class="linha"><span>Qualidade<small>O modo automático reduz a resolução se o aparelho ficar lento.</small></span>
+      <select id="aQual"><option value="auto">Automática</option><option value="alta">Alta</option><option value="baixa">Baixa</option></select></label>
+    <label class="linha"><span>Reduzir efeitos<small>Menos partículas, sem tremor de câmera.</small></span><input type="checkbox" id="aReduz"></label>
+    <label class="linha"><span>Mostrar quadros por segundo</span><input type="checkbox" id="aFps"></label>
+    <div class="rodape"><button class="btn grande pri" data-fecha>Pronto</button></div></div>
+</section>
+
+<section class="tela escura" id="tAjuda" hidden>
+  <div class="painel rolavel"><h2>Como jogar</h2>
+    <ul class="ajuda">
+      <li><b>Mover:</b> setas do teclado ou as teclas A e D. No celular, toque no lado esquerdo ou direito da tela, ou incline o aparelho.</li>
+      <li><b>Folhas:</b> leve a bola de papel até as folhas. Palavra nova abre o exercício de fala; palavra repetida faz a bola crescer na hora.</li>
+      <li><b>Triturador:</b> corta a bola pela metade. Desvie ou pule por cima usando a rampa.</li>
+      <li><b>Fósforo:</b> queima uma folha da bola.</li>
+      <li><b>Estrela azul:</b> deixa tudo mais rápido por alguns segundos.</li>
+      <li><b>Poção:</b> liga o campo de força e protege a bola.</li>
+      <li><b>Objetivo:</b> chegar ao fim da pista com a maior bola possível.</li>
+      <li><b>Menus:</b> setas para escolher, Espaço ou Enter para confirmar, Esc para voltar ou pausar.</li>
+    </ul>
+    <div class="rodape"><button class="btn grande pri" data-fecha>Entendi</button></div></div>
+</section>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

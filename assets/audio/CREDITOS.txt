@@ -1,0 +1,5 @@
+Besouro das Pistas de R Vibrante — áudio
+Autoria: Gabura Digital
+Licença: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+Crédito sugerido: "nome do som" por Gabura Digital — CC BY 4.0
+Sons sintetizados com a Web Audio API, a partir de código escrito com ajuda de IA generativa.
