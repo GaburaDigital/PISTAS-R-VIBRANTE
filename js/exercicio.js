@@ -9,6 +9,21 @@ const MSG = { 10: ['Incrível!', 'Perfeito!', 'Que R lindo!'], 5: ['Quase lá!',
 const sorteio = (l) => l[Math.floor(Math.random() * l.length)];
 const PONTOS_LIVRE = 5, PONTOS_TREINO = 5;
 
+// vídeos da boquinha: um por sílaba (ra, re, pra...). Sem o vídeo exato, usa a mesma vogal com R ou L.
+let BOCAS = new Set(), bocaPadrao = null;
+fetch('assets/boca/lista.json').then((r) => r.json()).then((l) => (BOCAS = new Set(l))).catch(() => {});
+function videoBoca(p) {
+  const s = silabaAlvo(p).normalize('NFD').replace(/[\u0300-\u036f]/g, ''), m = s.match(/^([^aeiou]*)([aeiou])/); if (!m) return null;
+  for (const k of [m[1] + m[2], (p.som === 'l' ? 'l' : 'r') + m[2], (p.som === 'l' ? 'l' : 'r') + 'a']) if (BOCAS.has(k)) return k;
+  return null;
+}
+function mostraBoca(p) {
+  const b = $('#exBoca'); if (bocaPadrao === null) bocaPadrao = b.innerHTML; const k = videoBoca(p);
+  if (!k) { b.innerHTML = bocaPadrao; b.classList.remove('com-video'); return; }
+  b.classList.add('com-video'); b.innerHTML = `<video autoplay loop muted playsinline aria-label="Boca falando ${k}"><source src="assets/boca/${k}.mp4" type="video/mp4"><source src="assets/boca/${k}.webm" type="video/webm"></video>`;
+  const v = b.querySelector('video'); v.playbackRate = 0.85; v.play().catch(() => {});
+}
+
 export const Mic = {
   stream: null, an: null, estado: 'nao',  // nao | ok | negado | sem
   suportado: () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
@@ -27,7 +42,7 @@ export const Exercicio = {
   abre(p, cfg, desenhaFolha) {
     this.cfg = cfg; this.p = p; this.treinou = false; this.token++;
     const cv = $('#exFolha'); cv.getContext('2d').drawImage(desenhaFolha(p), 0, 0);
-    $('#exPalavra').innerHTML = this.silabada(p);
+    $('#exPalavra').innerHTML = this.silabada(p); mostraBoca(p);
     $('#tExercicio').hidden = false; Audio.abafa(0);
     return new Promise((ok) => { this.ok = (res) => { $('#tExercicio').hidden = true; Audio.abafa(1, 0.5); ok(res); }; cfg.rapido ? this.telaRapida() : this.telaInicio(); });
   },

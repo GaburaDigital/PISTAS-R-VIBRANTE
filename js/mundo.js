@@ -10,6 +10,16 @@ const MOD = {};
 const IMGS = new Map();
 const COR_SOM = { r: '#e6007e', l: '#0a66ff' };
 const G = 20;
+
+// letras gigantes do cenário, desenhadas como formas planas e extrudadas
+function letraGeo(l) {
+  const s = new THREE.Shape();
+  if (l === 'R') { s.moveTo(0, 0); s.lineTo(0, 10); s.lineTo(4, 10); s.bezierCurveTo(7.4, 10, 7.4, 4.6, 4, 4.6); s.lineTo(7, 0); s.lineTo(4.5, 0); s.lineTo(2.3, 4.4); s.lineTo(2.3, 0); s.lineTo(0, 0);
+    const b = new THREE.Path(); b.moveTo(2.3, 8.1); b.lineTo(3.8, 8.1); b.bezierCurveTo(5.1, 8.1, 5.1, 6.5, 3.8, 6.5); b.lineTo(2.3, 6.5); b.lineTo(2.3, 8.1); s.holes.push(b); }
+  else { s.moveTo(0, 0); s.lineTo(0, 10); s.lineTo(2.4, 10); s.lineTo(2.4, 2.3); s.lineTo(6.2, 2.3); s.lineTo(6.2, 0); s.lineTo(0, 0); }
+  const g = new THREE.ExtrudeGeometry(s, { depth: 1.8, bevelEnabled: true, bevelThickness: 0.25, bevelSize: 0.25, bevelSegments: 1, curveSegments: 6 });
+  g.center(); return g;
+}
 export const raioDe = (p) => Math.min(1.3, 0.36 + 0.052 * Math.sqrt(Math.max(p, 0)));
 const lerp = (a, b, t) => a + (b - a) * t;
 const limita = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -36,7 +46,7 @@ function texCanvas(c, opts = {}) { const t = new THREE.CanvasTexture(c); t.color
 
 class Particulas {
   constructor(cena, n) {
-    this.n = n; this.p = []; this.livre = 0; this.o = new THREE.Object3D();
+    this.n = n; this.p = []; this.livre = 0; this.o = new THREE.Object3D(); this.k = 1; this.kt = 1;
     this.mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), n);
     this.mesh.frustumCulled = false; this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     const z = new THREE.Matrix4().makeScale(0, 0, 0), c = new THREE.Color(1, 1, 1);
@@ -44,7 +54,7 @@ class Particulas {
     cena.add(this.mesh);
   }
   emite(n, pos, o = {}) {
-    const { cores = [0xffffff], esp = 1, vel = [0, 2, 0], rnd = 3, grav = 9, vida = 1, tam = [0.14, 0.05], giro = 8, fixo = null } = o, c = new THREE.Color();
+    const { cores = [0xffffff], esp = 1, vel = [0, 2, 0], rnd = 3, grav = 9, vida = 1, giro = 8, fixo = null } = o, c = new THREE.Color(), kt = this.kt, tam = (o.tam || [0.14, 0.05]).map((v) => v * kt); n = Math.max(1, Math.round(n * this.k));
     for (let k = 0; k < n; k++) {
       const i = this.livre; this.livre = (this.livre + 1) % this.n; const q = this.p[i];
       q.x = pos.x + (Math.random() - 0.5) * esp; q.y = pos.y + (Math.random() - 0.5) * esp; q.z = pos.z + (Math.random() - 0.5) * esp;
@@ -82,11 +92,12 @@ export class Mundo {
       vertexShader: 'varying float h; void main(){ h=normalize(position).y; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
       fragmentShader: 'uniform vec3 topo; uniform vec3 base; varying float h; void main(){ float t=smoothstep(-0.02,0.5,h); gl_FragColor=vec4(mix(base,topo,t),1.0); \n#include <colorspace_fragment>\n }' }));
     this.ceu.renderOrder = -10; this.cena.add(this.ceu);
-    this.fx = new Particulas(this.cena, 420);
+    this.fx = new Particulas(this.cena, 1600); this.op = { intenso: false, zoom: false, retomada: false, cenario: 'normal' };
+    this.decor = new THREE.Group(); this.cena.add(this.decor);
     this.pista = new THREE.Group(); this.cena.add(this.pista);
     this.objs = new THREE.Group(); this.cena.add(this.objs);
     this.estado = 'carregando'; this.t = 0; this.entrada = { dir: 0, passos: 0 };
-    this.texFolhas = new Map(); this.tremor = 0; this.fov = 58; this.quadros = []; this.tema = null; this.temaAlvo = null;
+    this.texFolhas = new Map(); this.maxBoost = 7; this.tremor = 0; this.fov = 58; this.quadros = []; this.tema = null; this.temaAlvo = null;
     this._v = new THREE.Vector3(); this._alvo = new THREE.Vector3();
   }
 
@@ -113,7 +124,8 @@ export class Mundo {
     this.sombraBola = new THREE.Mesh(new THREE.CircleGeometry(1, 20), sm); this.sombraBola.rotation.x = -Math.PI / 2; this.cena.add(this.sombraBola);
     this.sombraBes = new THREE.Mesh(new THREE.CircleGeometry(0.45, 16), sm); this.sombraBes.rotation.x = -Math.PI / 2; this.cena.add(this.sombraBes);
     // besourinho
-    this.bes = new THREE.Group(); const m = MOD.besourinho.cena; m.rotation.y = Math.PI; m.scale.setScalar(0.82); this.bes.add(m); this.cena.add(this.bes);
+    this.bes = new THREE.Group(); this.pivo = new THREE.Group(); this.pivo.position.y = 0.45; const m = this.besModelo = MOD.besourinho.cena; m.scale.setScalar(0.82); m.position.y = -0.45; this.pivo.add(m); this.bes.add(this.pivo); this.cena.add(this.bes);
+    this.besAng = 0; this.flip = 0; // 0 = de frente para a câmera; PI = de frente para a bola
     this.mixBes = new THREE.AnimationMixer(m); this.acoes = {};
     for (const c of MOD.besourinho.clips) this.acoes[c.name] = this.mixBes.clipAction(c);
     this.acaoAtual = null; this.anima('idle');
@@ -188,17 +200,41 @@ export class Mundo {
     const tex = texCanvas(c, { wrapT: THREE.RepeatWrapping, anisotropy: this.r.capabilities.getMaxAnisotropy() });
     const marcas = new THREE.Mesh(this.faixa(LARGURA, 0.025, fase.altura, -30, fim), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })); marcas.userData.descarta = true; this.pista.add(marcas);
     this.matChao = new THREE.MeshLambertMaterial({ color: tema.chao }); this.pista.add(new THREE.Mesh(this.faixa(260, -0.55, fase.altura, -60, fim + 120, 6), this.matChao));
-    // enfeites simples dos dois lados
-    const n = Math.floor(fim / 7) * 2, bol = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 8), new THREE.MeshLambertMaterial(), n), con = new THREE.InstancedMesh(new THREE.ConeGeometry(0.8, 3, 7), new THREE.MeshLambertMaterial(), n);
-    const o = new THREE.Object3D(), cor = new THREE.Color(); let sd = 12345 + fase.seed % 1000; const rd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
-    for (let i = 0; i < n; i++) {
-      const s = -20 + (i >> 1) * 7 + rd() * 5, lado = i % 2 ? 1 : -1, h = fase.altura(s) - 0.55;
-      let e = 0.7 + rd() * 1.9; o.position.set(lado * (LARGURA / 2 + 4.5 + e * 1.2 + rd() * 26), h + e * 0.55, -s); o.scale.set(e, e * (0.7 + rd() * 0.5), e); o.rotation.set(0, 0, 0); o.updateMatrix(); bol.setMatrixAt(i, o.matrix); bol.setColorAt(i, cor.set(tema.enfeite[Math.floor(rd() * tema.enfeite.length)]));
-      e = 0.8 + rd() * 1.6; o.position.set(lado * (LARGURA / 2 + 5.5 + rd() * 34), h + e * 1.5, -s - 3); o.scale.set(e, e, e); o.updateMatrix(); con.setMatrixAt(i, o.matrix); con.setColorAt(i, cor.set(tema.enfeite[Math.floor(rd() * tema.enfeite.length)]));
-    }
-    this.pista.add(bol, con); this.enfeites = [bol, con];
+    this.montaCenario();
     this.aplicaTema(tema);
     this.itens = fase.itens.map((d) => ({ ...d, obj: null, feito: false, criado: false })); this.iProx = 0; this.vivos = [];
+  }
+  // cenário dos lados: normal (formas nos tons do chão), grande (montanhas e letras gigantes) ou nenhum
+  montaCenario() {
+    this.decor.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); this.decor.clear();
+    const fase = this.fase, tema = this.defPista.tema, modo = this.op.cenario; if (!fase || modo === 'nenhum') return;
+    const fim = fase.comprimento + 70, o = new THREE.Object3D(), cor = new THREE.Color(), chao = new THREE.Color(tema.chao), pista = new THREE.Color(tema.pista);
+    let sd = 12345 + (fase.seed % 1000); const rd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+    const tom = (claro = 0) => cor.copy(chao).lerp(pista, rd()).offsetHSL((rd() - 0.5) * 0.04, (rd() - 0.5) * 0.12, claro + (rd() - 0.3) * 0.1);
+    const mat = () => new THREE.MeshLambertMaterial({ flatShading: true });
+    if (modo === 'normal') {
+      const n = Math.floor(fim / 7) * 2, bol = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 8), mat(), n), con = new THREE.InstancedMesh(new THREE.ConeGeometry(0.8, 3, 7), mat(), n);
+      for (let i = 0; i < n; i++) {
+        const s = -20 + (i >> 1) * 7 + rd() * 5, lado = i % 2 ? 1 : -1, h = fase.altura(s) - 0.55;
+        let e = 0.7 + rd() * 1.9; o.position.set(lado * (LARGURA / 2 + 4.5 + e * 1.2 + rd() * 26), h + e * 0.55, -s); o.scale.set(e, e * (0.7 + rd() * 0.5), e); o.rotation.set(0, 0, 0); o.updateMatrix(); bol.setMatrixAt(i, o.matrix); bol.setColorAt(i, tom(0.06));
+        e = 0.8 + rd() * 1.6; o.position.set(lado * (LARGURA / 2 + 5.5 + rd() * 34), h + e * 1.5, -s - 3); o.scale.set(e, e, e); o.updateMatrix(); con.setMatrixAt(i, o.matrix); con.setColorAt(i, tom(0.1));
+      }
+      this.decor.add(bol, con); return;
+    }
+    // grande: montanhas ao fundo e letras gigantes perto da pista
+    const nm = Math.floor(fim / 22) * 2, mont = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 6), mat(), nm);
+    for (let i = 0; i < nm; i++) { const s = -40 + (i >> 1) * 22 + rd() * 14, lado = i % 2 ? 1 : -1, h = fase.altura(s) - 0.55, r = 10 + rd() * 16, a = 12 + rd() * 26;
+      o.position.set(lado * (LARGURA / 2 + 22 + r + rd() * 40), h + a / 2, -s); o.scale.set(r, a, r); o.rotation.set(0, rd() * 3, 0); o.updateMatrix(); mont.setMatrixAt(i, o.matrix); mont.setColorAt(i, tom(-0.02 + rd() * 0.1)); }
+    this.decor.add(mont);
+    const geoR = letraGeo('R'), geoL = letraGeo('L'), lista = { r: [], l: [] };
+    for (let s = 30; s < fim; s += 34 + rd() * 22) { let som = 'r'; for (const m of fase.marcas) if (m.s <= s) som = m.som; lista[this.defPista.portais ? som : 'r'].push(s); }
+    for (const [som, ss] of Object.entries(lista)) {
+      if (!ss.length) continue; const im = new THREE.InstancedMesh(som === 'l' ? geoL : geoR, mat(), ss.length);
+      ss.forEach((s, i) => { const lado = i % 2 ? 1 : -1, h = fase.altura(s) - 0.4, e = 0.75 + rd() * 0.5;
+        o.position.set(lado * (LARGURA / 2 + 7 + rd() * 8), h + 5 * e, -s); o.scale.setScalar(e); o.rotation.set(0, -lado * (0.35 + rd() * 0.3), (rd() - 0.5) * 0.15); o.updateMatrix(); im.setMatrixAt(i, o.matrix);
+        im.setColorAt(i, cor.copy(pista).offsetHSL(0, 0.05, 0.12 + rd() * 0.08)); });
+      this.decor.add(im);
+    }
   }
   aplicaTema(t) { this.matPista.color.set(t.pista); this.matChao.color.set(t.chao); this.ceu.material.uniforms.topo.value.set(t.ceuTopo); this.ceu.material.uniforms.base.value.set(t.ceuBase); this.cena.fog.color.set(t.ceuBase); }
   trocaTema(alvo) { this.temaDe = { pista: this.matPista.color.clone(), chao: this.matChao.color.clone(), topo: this.ceu.material.uniforms.topo.value.clone(), base: this.ceu.material.uniforms.base.value.clone() }; this.temaAlvo = { pista: new THREE.Color(alvo.pista), chao: new THREE.Color(alvo.chao), topo: new THREE.Color(alvo.ceuTopo), base: new THREE.Color(alvo.ceuBase), t: 0 }; }
@@ -238,14 +274,14 @@ export class Mundo {
   }
 
   // ---------- estados ----------
-  menu(fase, pista, nivel) { this.montaFase(fase, pista, nivel); this.zera(); this.estado = 'menu'; this.anima('idle'); }
+  menu(fase, pista, nivel) { this.montaFase(fase, pista, nivel); this.zera(); this.estado = 'menu'; this.anima('idle'); this.besAng = 0; }
   zera() {
-    this.s = 0; this.x = 0; this.vel = 0; this.pontos = 20; this.pontosFala = 0; this.pulo = 0; this.vy = 0; this.boost = 0; this.turbo = 0; this.escT = 0; this.inv = 0; this.raio = raioDe(20); this.pop = 0; this.achata = 0;
+    this.s = 0; this.x = 0; this.vel = 0; this.pontos = 20; this.pontosFala = 0; this.pulo = 0; this.vy = 0; this.boost = 0; this.turbo = 0; this.super = 0; this.flip = 0; this.escT = 0; this.inv = 0; this.raio = raioDe(20); this.pop = 0; this.achata = 0;
     this.faixaAtual = this.fase.xs.length >> 1; this.feitas = new Set(); this.registro = []; this.tempo = 0; this.batidas = 0; this.rotBola = new THREE.Quaternion(); this.bola.visible = true; this.escudo.visible = false; this.entrada.passos = 0; this.limpaBola();
-    this.som = 'r'; this.fimT = 0; this.cam.position.set(0, 3.2, 7); this.tremor = 0;
+    this.som = 'r'; this.fimT = 0; this.cam.position.set(0, 3.2, 7); this.tremor = 0; this.besAng = 0;
   }
   comeca(fase, pista, nivel) { this.montaFase(fase, pista, nivel); this.zera(); this.contagem(); }
-  contagem() { this.estado = 'contagem'; this.contT = 0; this.contN = 4; this.anima('idle'); }
+  contagem(rapida = false) { this.estado = 'contagem'; this.rapida = rapida; this.contT = rapida ? 1 : 0; this.contN = rapida ? 1 : 4; this.anima('idle'); }
   pausa(v) { if (v && (this.estado === 'correndo' || this.estado === 'contagem')) { this.antes = this.estado; this.estado = 'pausa'; Audio.calaLacos(); } else if (!v && this.estado === 'pausa') { this.estado = this.antes === 'correndo' ? 'contagem' : this.antes; if (this.estado === 'contagem') { this.contT = 0; this.contN = 4; } } }
 
   // usado nos testes: salta para um ponto da pista
@@ -254,21 +290,22 @@ export class Mundo {
   fimExercicio(res) {
     const it = this.pendente; this.pendente = null; if (!it) return;
     this.feitas.add(it.p.w); this.registro.push({ w: it.p.w, som: it.p.som, ...res });
-    this.ganha(res.pontos, it); this.pontosFala += res.pontos; this.contagem();
+    this.ganha(res.pontos * (it.dobro ? 2 : 1), it, it.dobro); this.pontosFala += res.pontos; this.contagem(this.op.retomada);
   }
-  ganha(pts, it) { this.pontos += pts; if (it && it.obj) it.voa = 0.0001; this.cb.onTexto(`+${pts}`, 'bom'); }
+  ganha(pts, it, dobro) { this.pontos += pts; if (it && it.obj) it.voa = 0.0001; this.cb.onIcone(dobro ? 'x2' : null, `+${pts}`, 'bom'); }
 
   // ---------- quadro ----------
   quadro(dt, manual = false) {
     if (this.congela && !manual) return; this.t += dt; const e = this.estado, f = this.fase; if (!f || !this.bola) { this.r.render(this.cena, this.cam); return; }
-    if (e === 'contagem') { this.contT -= dt; if (this.contT <= 0) { this.contN--; this.contT = 0.72; if (this.contN > 0) { this.cb.onContagem(this.contN); Audio.toca('bipe'); } else { this.cb.onContagem(0); Audio.toca('bipe', { tom: 1.5 }); this.estado = 'correndo'; this.anima('push_walk'); } } }
+    if (e === 'contagem' && this.rapida) { this.contT -= dt; if (this.contT <= 0) { this.estado = 'correndo'; this.anima('push_walk'); } }
+    else if (e === 'contagem') { this.contT -= dt; if (this.contT <= 0) { this.contN--; this.contT = 0.72; if (this.contN > 0) { this.cb.onContagem(this.contN); Audio.toca('bipe'); } else { this.cb.onContagem(0); Audio.toca('bipe', { tom: 1.5 }); this.estado = 'correndo'; this.anima('push_walk'); } } }
     if (e === 'correndo') this.corre(dt);
     else { Audio.laco('rolar', 0); Audio.laco('triturador_aviso', 0); }
     if (e === 'vitoria' || e === 'derrota') { this.fimT += dt; if (e === 'vitoria') { this.vel = Math.max(0, this.vel - dt * 9); this.s += this.vel * dt; this.gira(this.vel * dt, 0); if (Math.random() < dt * 14 && !this.reduz) this.confete(); } if (this.fimT > 2.7 && !this.avisou) { this.avisou = true; this.cb.onFim(this.resumo(e === 'vitoria')); } }
     this.spawn(); this.animaObjs(dt, e);
     // tema em transição (portais)
     if (this.temaAlvo) { const a = this.temaAlvo, d = this.temaDe; a.t = Math.min(1, a.t + dt * 1.6); this.matPista.color.lerpColors(d.pista, a.pista, a.t); this.matChao.color.lerpColors(d.chao, a.chao, a.t); this.ceu.material.uniforms.topo.value.lerpColors(d.topo, a.topo, a.t); this.ceu.material.uniforms.base.value.lerpColors(d.base, a.base, a.t); this.cena.fog.color.copy(this.ceu.material.uniforms.base.value); if (a.t >= 1) this.temaAlvo = null; }
-    this.posiciona(dt, e); this.fx.atualiza(dt); this.mixBes.update(dt * (e === 'correndo' ? limita(this.vel / 7.5, 0.6, 2.2) : 1));
+    this.posiciona(dt, e); this.fx.atualiza(dt); this.mixBes.update(dt * (e === 'correndo' ? limita(this.vel / 7.5, 0.6, 2.2) * (this.super > 0 ? 1.9 : this.boost > 0 || this.turbo > 0 ? 1.35 : 1) : 1));
     if (!this.semRender) this.r.render(this.cena, this.cam); this.medeQuadro(dt);
   }
 
@@ -280,11 +317,16 @@ export class Mundo {
     else { en.passos = 0; this.x = limita(this.x + en.dir * 7.2 * dt, -lim, lim); }
     // velocidade
     const incl = f.inclina(this.s), prog = this.s / f.comprimento;
-    const alvoV = n.vel * (1 + 0.12 * prog) * limita(1 - incl * 1.7, 0.78, 1.25) * Math.min(1.7, (this.boost > 0 ? 1.45 : 1) * (this.turbo > 0 ? 1.4 : 1));
+    const alvoV = n.vel * (1 + 0.12 * prog) * limita(1 - incl * 1.7, 0.78, 1.25) * (this.super > 0 ? 1.9 : Math.min(1.7, (this.boost > 0 ? 1.45 : 1) * (this.turbo > 0 ? 1.4 : 1)));
     this.vel += (alvoV - this.vel) * Math.min(1, dt * 2.6); const sAnt = this.s; this.s += this.vel * dt;
     // pulo
     if (this.pulo > 0 || this.vy > 0) { this.vy -= G * dt; this.pulo += this.vy * dt; if (this.pulo <= 0) { this.pulo = 0; this.vy = 0; this.achata = 1; Audio.toca('pouso'); this.fx.emite(this.reduz ? 4 : 12, this.bola.position.clone().setY(f.altura(this.s) + 0.1), { cores: [0xffffff, 0xffe9b0], vel: [0, 1.5, 0], rnd: 4, vida: 0.5, tam: [0.12, 0.12] }); this.tremor = Math.max(this.tremor, 0.2); } }
-    this.gira(this.s - sAnt, this.x - x0);
+    this.gira((this.s - sAnt) * (this.super > 0 ? 2.2 : this.boost > 0 || this.turbo > 0 ? 1.5 : 1), this.x - x0);
+    // salto mortal do Tiriri ao passar pela rampa ou pelo triturador
+    const sB = this.s - this.raio - 0.3, sBa = sAnt - this.raio - 0.3;
+    if (this.flip <= 0) for (const it of this.vivos) { if ((it.tipo !== 'rampa' && it.tipo !== 'triturador') || it.besPulou) continue; const d = it.s - 0.5; if (d > sBa && d <= sB + 0.6 && Math.abs(this.x - it.x) < 0.9 * (n.faixas === 3 ? 1.4 : 1)) { it.besPulou = true; this.flip = 0.0001; break; } }
+    if (this.flip > 0) { this.flip += dt / 0.6; if (this.flip >= 1) this.flip = 0; }
+    if (this.super > 0) { this.super -= dt; this.fumaca(); }
     // temporizadores
     if (this.boost > 0) { this.boost -= dt; this.rastro(0x39c6ff); }
     if (this.turbo > 0) { this.turbo -= dt; this.rastro(0xffe14d); }
@@ -306,10 +348,10 @@ export class Mundo {
         case 'folha': if (dx < 0.52 * esc + r * 0.62) this.pegaFolha(it); break;
         case 'triturador': if (noChao && dx < 0.56 * esc + rP * 0.55) this.bate(it); break;
         case 'fosforo': if (noChao && dx < 0.2 + rP * 0.8) this.bate(it); break;
-        case 'estrela': if (dx < 0.5 + r * 0.6) { it.feito = true; this.boost = 4.5; Audio.toca('estrela'); this.tocaClip(it.obj, 'collect'); it.some = 0.6; this.cb.onTexto('Mais rápido!', 'azul'); this.brilho(it.obj.position, [0x39c6ff, 0xffffff, 0x0a66ff]); } break;
-        case 'pocao': if (dx < 0.5 + r * 0.6) { it.feito = true; this.escT = n.escudo; this.escudo.visible = true; Audio.toca('escudo_on'); this.tocaClip(it.obj, 'collect'); it.some = 0.6; this.cb.onTexto('Campo de força!', 'rosa'); this.brilho(it.obj.position, [0xff2bd6, 0xffe14d]); } break;
+        case 'estrela': if (dx < 0.5 + r * 0.6) { it.feito = true; this.boost = this.maxBoost; Audio.toca('estrela'); this.tocaClip(it.obj, 'collect'); it.some = 0.6; this.cb.onIcone('estrela', null, 'azul'); this.brilho(it.obj.position, [0x39c6ff, 0xffffff, 0x0a66ff]); } break;
+        case 'pocao': if (dx < 0.5 + r * 0.6) { it.feito = true; this.escT = n.escudo; this.escudo.visible = true; Audio.toca('escudo_on'); this.tocaClip(it.obj, 'collect'); it.some = 0.6; this.cb.onIcone('escudo', null, 'rosa'); this.brilho(it.obj.position, [0xff2bd6, 0xffe14d]); } break;
         case 'rampa': if (this.pulo <= 0.01 && dx < 0.62 * esc) { it.feito = true; const T = limita(9.5 / this.vel, 0.75, 1.5); this.vy = G * T / 2; this.pulo = 0.02; Audio.toca('salto'); } break;
-        case 'turbo': if (this.pulo <= 0.3 && dx < 0.62 * esc) { it.feito = true; this.turbo = 2.2; Audio.toca('estrela', { tom: 1.35 }); this.cb.onTexto('Turbo!', 'azul'); } break;
+        case 'turbo': if (this.pulo <= 0.3 && dx < 0.62 * esc) { it.feito = true; if (this.boost > 0) { this.super = 3.5; this.turbo = 3.5; Audio.toca('estrela', { tom: 1.6 }); Audio.toca('escudo_on', { tom: 1.3, vol: 0.6, atraso: 0.08 }); this.cb.onIcone('super', null, 'alerta'); this.tremor = 0.35; } else { this.turbo = 2.2; Audio.toca('estrela', { tom: 1.35 }); this.cb.onIcone('turbo', null, 'alerta'); } } break;
       }
       if (this.estado !== 'correndo') return;
     }
@@ -318,15 +360,17 @@ export class Mundo {
     this.cb.onHud(this);
   }
   gira(ds, dx) { const r = Math.max(this.raio, 0.3), q = new THREE.Quaternion(); q.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -ds / r); this.rotBola.premultiply(q); q.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -dx / r); this.rotBola.premultiply(q); }
+  fumaca() { if (this.reduz && Math.random() > 0.3) return; const p = this.bes.position; this.fx.emite(1, { x: p.x + (Math.random() - 0.5) * 0.5, y: p.y + 0.08, z: p.z + 0.25 }, { cores: [0xffffff, 0xe9e3f1, 0xcfc6dd], esp: 0.1, vel: [0, 0.9, this.vel * 0.35], rnd: 1.2, grav: -0.6, vida: 0.7, tam: [0.32, 0.32] }); }
   rastro(cor) { if (this.reduz || Math.random() > 0.6) return; this.fx.emite(1, { x: (Math.random() - 0.5) * 9, y: this.fase.altura(this.s) + 0.3 + Math.random() * 3, z: -this.s - 26 }, { cores: [cor, 0xffffff], esp: 0, vel: [0, 0, this.vel * 2.2], rnd: 0, grav: 0, vida: 0.7, tam: [0.05, 2.2], fixo: [Math.PI / 2, 0, 0] }); }
   brilho(p, cores) { this.fx.emite(this.reduz ? 8 : 26, p.clone().setY(p.y + 0.7), { cores, vel: [0, 3, -this.vel * 0.6], rnd: 6, grav: 6, vida: 0.7, tam: [0.16, 0.16] }); }
   confete() { this.fx.emite(10, { x: (Math.random() - 0.5) * 6, y: this.fase.altura(this.s) + 3.4, z: -this.s - 2 - Math.random() * 6 }, { cores: [0xff2bd6, 0xffe14d, 0x39c6ff, 0x7ae582, 0xff7b00], vel: [0, 2, 0], rnd: 5, grav: 5, vida: 1.8, tam: [0.2, 0.1] }); }
 
   pegaFolha(it) {
     it.feito = true;
-    if (it.par === 'outro') { it.some = 0.5; this.cb.onTexto(`Essa é ${it.p.w.toUpperCase()}`, 'azul'); this.cb.onAviso(null); return; }
+    if (it.par === 'outro') { it.some = 0.5; this.cb.onIcone('errado', null, 'azul'); this.cb.onAviso(null); return; }
     if (it.par === 'alvo') this.cb.onAviso(null);
-    if (this.feitas.has(it.p.w)) { this.ganha(2, it); Audio.toca('repetida'); return; }
+    const dobro = this.boost > 0; if (this.feitas.has(it.p.w)) { this.ganha(dobro ? 4 : 2, it, dobro); Audio.toca('repetida'); return; }
+    it.dobro = dobro;
     this.pendente = it; this.estado = 'exercicio'; this.anima('idle'); Audio.calaLacos(); Audio.toca('popup'); this.cb.onExercicio(it.p, it);
   }
   bate(it) {
@@ -334,11 +378,11 @@ export class Mundo {
     if (this.escT > 0) { it.some = 0.25; Audio.toca('escudo_on', { tom: 1.7, vol: 0.7 }); this.brilho(pos, [0xff2bd6, 0xffffff]); this.tremor = 0.25; return; }
     if (this.inv > 0) return;
     this.batidas++; this.tocaClip(it.obj, 'hit');
-    if (it.tipo === 'triturador') { this.pontos = this.pontos / 2; Audio.toca('triturador_hit'); this.fx.emite(this.reduz ? 18 : 70, pos.setY(pos.y + 0.8), { cores: [0xffffff, 0xf3efe4, 0xe6e0f0], vel: [0, 5, -this.vel * 0.5], rnd: 7, grav: 11, vida: 1.3, tam: [0.34, 0.05] }); this.tremor = 0.7; this.vel *= 0.5; this.inv = 1.7; this.cb.onTexto('Cuidado com o triturador!', 'alerta'); if (it.obj.userData.placa) it.obj.userData.placa.visible = false; }
-    else { this.pontos -= 5; Audio.toca('fosforo'); this.queima(); this.fx.emite(this.reduz ? 10 : 34, pos.setY(pos.y + 0.9), { cores: [0xff7b00, 0xffd23f, 0xff3b1f], vel: [0, 4, -this.vel * 0.4], rnd: 5, grav: 4, vida: 0.7, tam: [0.09, 0.09] }); this.fx.emite(this.reduz ? 3 : 9, pos, { cores: [0x3a3340, 0x5a5060], vel: [0, 2.2, 0], rnd: 1.2, grav: -1.5, vida: 1.1, tam: [0.3, 0.3] }); this.tremor = 0.4; this.vel *= 0.75; this.inv = 1.2; this.cb.onTexto('Queimou uma folha', 'alerta'); }
+    if (it.tipo === 'triturador') { this.pontos = this.pontos / 2; Audio.toca('triturador_hit'); this.fx.emite(this.reduz ? 18 : 70, pos.setY(pos.y + 0.8), { cores: [0xffffff, 0xf3efe4, 0xe6e0f0], vel: [0, 5, -this.vel * 0.5], rnd: 7, grav: 11, vida: 1.3, tam: [0.34, 0.05] }); this.tremor = 0.7; this.vel *= 0.5; this.inv = 1.7; this.cb.onIcone('triturador', '÷2', 'alerta'); if (it.obj.userData.placa) it.obj.userData.placa.visible = false; }
+    else { this.pontos -= 5; Audio.toca('fosforo'); this.queima(); this.fx.emite(this.reduz ? 10 : 34, pos.setY(pos.y + 0.9), { cores: [0xff7b00, 0xffd23f, 0xff3b1f], vel: [0, 4, -this.vel * 0.4], rnd: 5, grav: 4, vida: 0.7, tam: [0.09, 0.09] }); this.fx.emite(this.reduz ? 3 : 9, pos, { cores: [0x3a3340, 0x5a5060], vel: [0, 2.2, 0], rnd: 1.2, grav: -1.5, vida: 1.1, tam: [0.3, 0.3] }); this.tremor = 0.4; this.vel *= 0.75; this.inv = 1.2; this.cb.onIcone('fogo', '-5', 'alerta'); }
     if (this.pontos < 5) this.perde();
   }
-  passaPortal(it) { this.som = it.som; Audio.toca('portal'); this.tocaClip(it.obj, 'pass'); this.trocaTema(it.som === 'l' ? this.defPista.temaL : this.defPista.tema); this.cb.onPortal(it.som); if (!this.reduz) this.brilho(this.bola.position, it.som === 'l' ? [0x0a66ff, 0xffffff, 0x39c6ff] : [0xe6007e, 0xffffff, 0xff8fab]); }
+  passaPortal(it) { this.som = it.som; Audio.toca('portal'); this.tocaClip(it.obj, 'pass'); this.trocaTema(it.som === 'l' ? this.defPista.temaL : this.defPista.tema); this.cb.onIcone(it.som === 'l' ? 'L' : 'R', null, it.som === 'l' ? 'azul' : 'rosa'); if (!this.reduz) this.brilho(this.bola.position, it.som === 'l' ? [0x0a66ff, 0xffffff, 0x39c6ff] : [0xe6007e, 0xffffff, 0xff8fab]); }
   vence(it) { this.estado = 'vitoria'; this.fimT = 0; this.avisou = false; this.anima('idle'); this.tocaClip(it.obj, 'win'); Audio.calaLacos(); Audio.toca('vitoria'); this.cb.onAviso(null); for (let k = 0; k < 4; k++) this.confete(); }
   perde() { this.estado = 'derrota'; this.fimT = 0; this.avisou = false; this.bola.visible = false; this.escudo.visible = false; Audio.calaLacos(); Audio.toca('desfaz'); Audio.toca('derrota', { atraso: 0.55 }); this.anima('defeated', true); this.cb.onAviso(null);
     this.fx.emite(this.reduz ? 24 : 90, this.bola.position, { cores: [0xffffff, 0xf3efe4], vel: [0, 4, 0], rnd: 7, grav: 9, vida: 1.8, tam: [0.4, 0.3] }); this.tremor = 0.5; }
@@ -370,23 +414,33 @@ export class Mundo {
     if (this.escudo.visible) { const pisca = this.escT < 1.6 ? 0.5 + 0.5 * Math.sin(this.t * 16) : 1; this.escudo.position.copy(this.bola.position); this.escudo.scale.setScalar(r * (1 + Math.sin(this.t * 6) * 0.04)); this.escudo.material.opacity = 0.14 + 0.2 * pisca; this.anel.rotation.set(this.t * 1.7, this.t * 2.3, 0); this.anel.visible = pisca > 0.4; }
     this.sombraBola.position.set(this.x, hB + 0.04, -this.s); this.sombraBola.scale.setScalar(r * 0.95 / (1 + this.pulo * 0.5)); this.sombraBola.visible = this.bola.visible;
     const sB = this.s - r - 0.3, hBes = f.altura(sB), menu = e === 'menu';
-    this.bes.position.set(this.x + (menu ? 0 : 0), hBes + (this.pulo > 0 ? Math.min(0.35, this.pulo * 0.3) : 0), -sB); this.bes.rotation.x = Math.atan(f.inclina(sB));
+    const fl = this.flip, pulinho = fl > 0 ? Math.sin(fl * Math.PI) * 0.55 : 0;
+    this.bes.position.set(this.x, hBes + (this.pulo > 0 ? Math.min(0.35, this.pulo * 0.3) : 0) + pulinho, -sB); this.bes.rotation.x = Math.atan(f.inclina(sB));
+    this.pivo.rotation.x = fl > 0 ? -(fl * fl * (3 - 2 * fl)) * Math.PI * 2 : 0;
+    if (e !== 'pausa') { const frente = e === 'menu' || e === 'exercicio' || e === 'vitoria' || (e === 'contagem' && !this.rapida && this.contN > 1); this.angAlvo = frente ? 0 : Math.PI; }
+    this.besAng += ((this.angAlvo ?? 0) - this.besAng) * Math.min(1, dt * 7); this.besModelo.rotation.y = this.besAng;
     this.bes.rotation.z = lerp(this.bes.rotation.z, limita((f.xs[this.faixaAtual] !== undefined && this.nivel.faixas ? f.xs[this.faixaAtual] - this.x : this.entrada.dir) * -0.25, -0.3, 0.3), Math.min(1, dt * 8));
     this.sombraBes.position.set(this.x, hBes + 0.04, -sB);
     // câmera
     const retrato = this.cam.aspect < 1, cam = this.cam;
-    if (menu) { const a = Math.sin(this.t * 0.35) * 0.45; if (retrato) { this._alvo.set(1.2 + a, hBes + 2.2, -sB + 5.6); cam.position.lerp(this._alvo, Math.min(1, dt * 2)); cam.lookAt(0, hBes + 3.0, -this.s); } else { this._alvo.set(-1.2 + a, hBes + 1.35, -sB + 3.4); cam.position.lerp(this._alvo, Math.min(1, dt * 2)); cam.lookAt(-2.3, hBes + 0.9, -this.s - 2.2); } }
+    if (e === 'derrota') { const k = Math.min(1, this.fimT / 1.6); this._alvo.set(this.x + 0.25, hBes + 4.2 - k * 1.6, -sB + 1.4 - k * 0.9); cam.position.lerp(this._alvo, Math.min(1, dt * 2.5)); cam.lookAt(this.x, hBes + 0.2, -sB); }
+    else if (menu) { const a = Math.sin(this.t * 0.35) * 0.45; if (retrato) { this._alvo.set(1.2 + a, hBes + 2.2, -sB + 5.6); cam.position.lerp(this._alvo, Math.min(1, dt * 2)); cam.lookAt(0, hBes + 3.0, -this.s); } else { this._alvo.set(-1.2 + a, hBes + 1.35, -sB + 3.4); cam.position.lerp(this._alvo, Math.min(1, dt * 2)); cam.lookAt(-2.3, hBes + 0.9, -this.s - 2.2); } }
     else {
-      const dist = (retrato ? 6.6 : 4.3) + r * 1.9, alt = (retrato ? 5.0 : 3.3) + r * 1.5, hC = f.altura(sB - 1);
+      const zm = this.op.zoom ? 0.72 : 1, dist = ((retrato ? 6.6 : 4.3) + r * 1.9) * zm, alt = ((retrato ? 5.0 : 3.3) + r * 1.5) * (this.op.zoom ? 0.8 : 1), hC = f.altura(sB - 1);
       this._alvo.set(this.x * 0.55, hC + alt, -sB + dist); cam.position.lerp(this._alvo, this.snap ? 1 : 1 - Math.exp(-dt * 7)); this.snap = false;
       if (this.tremor > 0) { this.tremor = Math.max(0, this.tremor - dt * 1.6); if (!this.reduz) { cam.position.x += (Math.random() - 0.5) * this.tremor * 0.35; cam.position.y += (Math.random() - 0.5) * this.tremor * 0.35; } }
       cam.lookAt(this.x * 0.72, f.altura(this.s + 6) + 0.5 + r * 0.4, -this.s - 6);
     }
-    const fovAlvo = (retrato ? 74 : 58) + (this.boost > 0 || this.turbo > 0 ? (this.reduz ? 3 : 9) : 0);
+    const fovAlvo = (retrato ? 74 : 58) + (this.super > 0 ? (this.reduz ? 4 : 15) : this.boost > 0 || this.turbo > 0 ? (this.reduz ? 3 : 9) : 0);
     if (Math.abs(fovAlvo - this.fov) > 0.05) { this.fov = lerp(this.fov, fovAlvo, Math.min(1, dt * 4)); cam.fov = this.fov; cam.updateProjectionMatrix(); }
     this.ceu.position.copy(cam.position);
   }
 
+  opcoes(op) {
+    const muda = op.cenario !== this.op.cenario; Object.assign(this.op, op);
+    this.fx.k = this.reduz ? 0.4 : op.intenso ? 3 : 1; this.fx.kt = op.intenso && !this.reduz ? 1.5 : 1;
+    if (muda && this.fase) this.montaCenario();
+  }
   redimensiona(w, h) { this.r.setSize(w, h, false); this.cam.aspect = w / h; this.fov = 0; this.cam.updateProjectionMatrix(); }
   defineQualidade(q) { this.qualidade = q; this.dpr = q === 'baixa' ? 1 : Math.min(window.devicePixelRatio || 1, q === 'alta' ? 2.5 : 2); this.r.setPixelRatio(this.dpr); this.redimensiona(this.canvas.clientWidth, this.canvas.clientHeight); }
   // qualidade automática: se os quadros ficarem lentos, reduz a resolução

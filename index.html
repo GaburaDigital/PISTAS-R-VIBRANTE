@@ -9,7 +9,7 @@
 <link rel="icon" href="assets/img/icone-192.png">
 <link rel="apple-touch-icon" href="assets/img/icone-apple.png">
 <link rel="manifest" href="manifest.webmanifest">
-<title>Pistas do R Vibrante</title>
+<title>Tiriri, o Besourinho</title>
 <link rel="stylesheet" href="estilo.css">
 <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.min.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 </head>
@@ -22,6 +22,7 @@
   <button class="redondo" id="bMusica" aria-label="Música" aria-pressed="true"></button>
   <button class="redondo" id="bEfeitos" aria-label="Efeitos sonoros" aria-pressed="true"></button>
   <button class="redondo" id="bAjuda" aria-label="Ajuda"></button>
+  <button class="redondo" id="bTela" aria-label="Tela cheia" hidden></button>
 </div>
 
 <!-- abertura -->
@@ -39,8 +40,8 @@
 <!-- título -->
 <section class="tela" id="tTitulo" hidden>
   <div class="titulo">
-    <h1><span>Pistas do</span><b>R Vibrante</b></h1>
-    <p class="demo">Versão de demonstração</p>
+    <h1><b>Tiriri</b><span>o Besourinho</span></h1>
+    <p class="demo">Pistas do R vibrante · demonstração</p>
     <div class="coluna">
       <button class="btn grande pri" data-ir="tPista">Jogar</button>
       <button class="btn" data-abre="tAjustes">Ajustes</button>
@@ -63,7 +64,7 @@
   <div class="painel"><h2>Vamos preparar o jogo</h2>
     <div class="prep">
       <div class="prep-item"><div><b>Microfone</b><span id="prepMicTxt">Usado no exercício de fala.</span></div><button class="btn" id="prepMic">Ligar microfone</button></div>
-      <div class="prep-item" id="prepInclinar" hidden><div><b>Inclinar o aparelho</b><span id="prepIncTxt">Mova o besourinho inclinando o celular para os lados.</span></div><button class="btn" id="prepInc">Ativar</button></div>
+      <div class="prep-item" id="prepInclinar" hidden><div><b>Inclinar o aparelho</b><span id="prepIncTxt">Mova o Tiriri inclinando o celular para os lados.</span></div><button class="btn" id="prepInc">Ativar</button></div>
     </div>
     <div class="rodape"><button class="btn" data-ir="tNivel">Voltar</button><button class="btn grande pri" id="prepJogar">Começar</button></div></div>
 </section>
@@ -121,17 +122,22 @@
     <label class="linha"><span>Música</span><input type="range" id="aVolMus" min="0" max="1" step="0.05"></label>
     <label class="linha"><span>Efeitos sonoros</span><input type="range" id="aVolSfx" min="0" max="1" step="0.05"></label>
     <h3>Controle</h3>
-    <label class="linha"><span>Inclinar o aparelho<small>Só em celular e tablet. Os botões na tela continuam funcionando.</small></span><input type="checkbox" id="aInclinar"></label>
+    <label class="linha"><span>Inclinar o aparelho<small>Só no nível Difícil, em celular e tablet. Nos outros níveis use os botões na tela.</small></span><input type="checkbox" id="aInclinar"></label>
     <label class="linha"><span>Sensibilidade da inclinação</span><input type="range" id="aSens" min="0.5" max="2" step="0.1"></label>
     <h3>Exercício de fala</h3>
     <label class="linha"><span>Quem avalia<small id="aAvaliaTxt"></small></span>
       <select id="aAvalia"><option value="fono">Fonoaudiólogo dá a nota</option><option value="livre">Sem análise (uso em casa)</option><option value="auto" disabled>Automático (em breve)</option></select></label>
+    <label class="linha"><span>Retomada sem contagem<small>Depois do exercício, a corrida volta em 1 segundo, sem o 3, 2, 1.</small></span><input type="checkbox" id="aRetomada"></label>
     <label class="linha"><span>Exercício rápido<small>Para testar a pista: o exercício vira um toque só.</small></span><input type="checkbox" id="aRapido"></label>
     <label class="linha"><span>Nome do avatar<small>Aparecerá no relatório. Opcional.</small></span><input type="text" id="aNome" maxlength="20" placeholder="Sem nome"></label>
     <h3>Imagem</h3>
     <label class="linha"><span>Qualidade<small>O modo automático reduz a resolução se o aparelho ficar lento.</small></span>
       <select id="aQual"><option value="auto">Automática</option><option value="alta">Alta</option><option value="baixa">Baixa</option></select></label>
     <label class="linha"><span>Reduzir efeitos<small>Menos partículas, sem tremor de câmera.</small></span><input type="checkbox" id="aReduz"></label>
+    <label class="linha"><span>Intensificar efeitos<small>Teste: partículas 3 vezes mais numerosas e maiores.</small></span><input type="checkbox" id="aIntenso"></label>
+    <label class="linha"><span>Zoom da câmera<small>Teste: câmera mais perto do Tiriri.</small></span><input type="checkbox" id="aZoom"></label>
+    <label class="linha"><span>Cenários grandes<small>Teste: montanhas e letras gigantes nas laterais.</small></span><input type="checkbox" id="aGrande"></label>
+    <label class="linha"><span>Desabilitar cenários<small>Só a pista e o céu. Ajuda em aparelhos lentos.</small></span><input type="checkbox" id="aSemCen"></label>
     <label class="linha"><span>Mostrar quadros por segundo</span><input type="checkbox" id="aFps"></label>
     <div class="rodape"><button class="btn grande pri" data-fecha>Pronto</button></div></div>
 </section>
@@ -139,11 +145,11 @@
 <section class="tela escura" id="tAjuda" hidden>
   <div class="painel rolavel"><h2>Como jogar</h2>
     <ul class="ajuda">
-      <li><b>Mover:</b> setas do teclado ou as teclas A e D. No celular, toque no lado esquerdo ou direito da tela, ou incline o aparelho.</li>
+      <li><b>Mover:</b> setas do teclado ou as teclas A e D. No celular, toque no lado esquerdo ou direito da tela. No nível Difícil também dá para inclinar o aparelho.</li>
       <li><b>Folhas:</b> leve a bola de papel até as folhas. Palavra nova abre o exercício de fala; palavra repetida faz a bola crescer na hora.</li>
       <li><b>Triturador:</b> corta a bola pela metade. Desvie ou pule por cima usando a rampa.</li>
       <li><b>Fósforo:</b> queima uma folha da bola.</li>
-      <li><b>Estrela azul:</b> deixa tudo mais rápido por alguns segundos.</li>
+      <li><b>Estrela azul:</b> deixa tudo mais rápido e as folhas valem o dobro. Com a estrela, a rampa de velocidade dá um superturbo.</li>
       <li><b>Poção:</b> liga o campo de força e protege a bola.</li>
       <li><b>Objetivo:</b> chegar ao fim da pista com a maior bola possível.</li>
       <li><b>Menus:</b> setas para escolher, Espaço ou Enter para confirmar, Esc para voltar ou pausar.</li>

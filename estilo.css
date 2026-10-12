@@ -51,8 +51,8 @@ button{cursor:pointer;touch-action:manipulation}
 /* título */
 .titulo{text-align:center;display:flex;flex-direction:column;align-items:center;gap:.5rem;width:min(420px,100%)}
 .titulo h1{margin:0;line-height:.95;font-weight:900;filter:drop-shadow(0 6px 0 rgba(27,16,37,.55))}
-.titulo h1 span{display:block;font-size:clamp(1.5rem,6vmin,2.6rem);color:#fff;-webkit-text-stroke:2px var(--tinta);paint-order:stroke fill}
-.titulo h1 b{display:block;font-size:clamp(2.6rem,11vmin,5rem);color:var(--sol);-webkit-text-stroke:3px var(--tinta);paint-order:stroke fill;letter-spacing:.01em}
+.titulo h1 span{display:block;font-size:clamp(1.4rem,5.6vmin,2.4rem);color:#fff;-webkit-text-stroke:2px var(--tinta);paint-order:stroke fill;margin-top:.1em}
+.titulo h1 b{display:block;font-size:clamp(3.4rem,15vmin,6.6rem);color:var(--sol);-webkit-text-stroke:3px var(--tinta);paint-order:stroke fill;letter-spacing:.01em}
 .demo{margin:.1rem 0 .6rem;background:var(--tinta);border-radius:99px;padding:.15em .9em;font-size:.82rem;font-weight:800;color:var(--azul)}
 .titulo .coluna{width:min(300px,100%)}
 
@@ -153,3 +153,18 @@ button{cursor:pointer;touch-action:manipulation}
   .trilho{flex:1 0 100%;max-width:none;margin-right:6px}
   .efeitos{top:calc(98px + var(--sa-t))}.faixa-aviso{top:calc(104px + var(--sa-t))}
 }
+
+/* ícones do jogo (no lugar das frases) */
+.textos div{display:flex;align-items:center;gap:.15em}
+.textos .hic{width:clamp(56px,13vmin,92px);height:auto;filter:drop-shadow(0 4px 0 rgba(27,16,37,.45))}
+.contagem .hic.grande{width:clamp(130px,30vmin,240px);height:auto}
+.chip .cic{width:22px;height:22px}
+.faixa-aviso{display:flex;align-items:center;gap:.4em}.faixa-aviso .hic{width:1.3em;height:1.3em}
+/* janelas: rolagem visível quando o conteúdo não cabe */
+.painel{overflow-y:auto;touch-action:pan-y;max-height:calc(100vh - 28px);max-height:calc(100dvh - 28px - var(--sa-t) - var(--sa-b));scrollbar-width:auto;scrollbar-color:var(--sol) rgba(255,255,255,.15)}
+.painel::-webkit-scrollbar{width:12px}.painel::-webkit-scrollbar-track{background:rgba(255,255,255,.12);border-radius:12px}
+.painel::-webkit-scrollbar-thumb{background:var(--sol);border-radius:12px;border:2px solid #2a1458}
+.painel.mais::after{content:"";position:sticky;display:block;bottom:-1px;height:44px;margin-top:-44px;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6' fill='none' stroke='%23ffd23f' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center bottom 2px/28px no-repeat,linear-gradient(rgba(42,20,88,0),#2a1458 70%)}
+.ex-boca.com-video{padding:0;background:none;opacity:1}
+.ex-boca video{width:clamp(120px,26vmin,200px);aspect-ratio:1;border-radius:50%;border:5px solid var(--sol);object-fit:cover;display:block;box-shadow:0 6px 0 rgba(0,0,0,.25);background:#000}

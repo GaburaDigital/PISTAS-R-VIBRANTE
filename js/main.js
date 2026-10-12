@@ -6,14 +6,31 @@ import { Exercicio, Mic } from './exercicio.js';
 
 const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
 const IC = {
-  pausa: '<path d="M8 5v14M16 5v14"/>', nota: '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
+  pausa: '<path d="M8 5v14M16 5v14"/>', telaCheia: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', telaSai: '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>', nota: '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
   som: '<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16.5 9a4 4 0 0 1 0 6"/>', ajuda: '<path d="M9.2 9a3 3 0 1 1 4.3 2.7c-.9.5-1.5 1.1-1.5 2.3M12 17.5v.5"/>',
   esq: '<path d="M15 5l-7 7 7 7"/>', dir: '<path d="M9 5l7 7-7 7"/>', corte: '<path class="corte" d="M4 4l16 16"/>',
 };
+// ícones grandes do jogo: substituem as frases para quem ainda não lê
+const ESC = '#1b1025';
+const HIC = {
+  estrela: `<path d="M12 2.5l2.9 6 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.2 1.3-6.6-4.9-4.6 6.6-.8z" fill="#39c6ff" stroke="${ESC}" stroke-width="1.6" stroke-linejoin="round"/>`,
+  escudo: `<path d="M12 2.5l8 3v6c0 5-3.6 8.6-8 10-4.4-1.4-8-5-8-10v-6z" fill="#ff8ff0" stroke="${ESC}" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="${ESC}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+  turbo: `<path d="M13.5 2L5 13.5h6l-1.5 8.5L19 10.5h-6z" fill="#ffd23f" stroke="${ESC}" stroke-width="1.6" stroke-linejoin="round"/>`,
+  super: `<path d="M9.5 2L2.5 12h5l-1.2 7.5L14 9h-5z" fill="#ffd23f" stroke="${ESC}" stroke-width="1.4" stroke-linejoin="round"/><path d="M17 4.5l-6 9h4.4l-1 7L21.5 11h-4.4z" fill="#39c6ff" stroke="${ESC}" stroke-width="1.4" stroke-linejoin="round"/>`,
+  triturador: `<path d="M12 3l10 17H2z" fill="#ffd23f" stroke="${ESC}" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5.5M12 17.2v.3" stroke="${ESC}" stroke-width="2.4" stroke-linecap="round"/>`,
+  fogo: `<path d="M12 2.5c1 3.6 5.5 5.6 5.5 11a5.5 5.5 0 0 1-11 0c0-2.6 1.4-4 2.4-5.2.3 1.9 1.1 2.8 2 3.2C10.5 8.6 11 5.6 12 2.5z" fill="#ff7b00" stroke="${ESC}" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 13.5c1.2 1.3 2.2 2.2 2.2 3.6a2.2 2.2 0 0 1-4.4 0c0-1.2 1-2.3 2.2-3.6z" fill="#ffd23f"/>`,
+  errado: `<circle cx="12" cy="12" r="9.5" fill="#ff5d73" stroke="${ESC}" stroke-width="1.6"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>`,
+  x2: `<circle cx="12" cy="12" r="9.5" fill="#39c6ff" stroke="${ESC}" stroke-width="1.6"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="900" fill="${ESC}" font-family="system-ui,sans-serif">x2</text>`,
+  R: `<circle cx="12" cy="12" r="9.5" fill="#e6007e" stroke="${ESC}" stroke-width="1.6"/><text x="12" y="16.6" text-anchor="middle" font-size="13" font-weight="900" fill="#fff" font-family="system-ui,sans-serif">R</text>`,
+  L: `<rect x="2.5" y="2.5" width="19" height="19" rx="3" fill="#0a66ff" stroke="${ESC}" stroke-width="1.6"/><text x="12" y="16.6" text-anchor="middle" font-size="13" font-weight="900" fill="#fff" font-family="system-ui,sans-serif">L</text>`,
+  ja: `<circle cx="12" cy="12" r="9.5" fill="#7ae582" stroke="${ESC}" stroke-width="1.6"/><path d="M9.5 7.5l7 4.5-7 4.5z" fill="${ESC}"/>`,
+  alvo: `<circle cx="12" cy="12" r="9.5" fill="#fff" stroke="${ESC}" stroke-width="1.6"/><circle cx="12" cy="12" r="6" fill="#ff5d73"/><circle cx="12" cy="12" r="2.6" fill="#fff"/>`,
+};
+const hic = (n, cls = 'hic') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${HIC[n]}</svg>`;
 const ic = (n, extra = '') => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${IC[n]}${extra}</svg>`;
 
 // ---------- ajustes ----------
-const PADRAO = { musica: true, efeitos: true, volMusica: 0.55, volEfeitos: 0.9, inclinar: false, sens: 1, avalia: 'fono', rapido: false, nome: '', qualidade: 'auto', reduz: false, fps: false, pista: '1', nivel: 'facil' };
+const PADRAO = { musica: true, efeitos: true, volMusica: 0.55, volEfeitos: 0.9, inclinar: false, sens: 1, avalia: 'fono', rapido: false, nome: '', qualidade: 'auto', reduz: false, fps: false, pista: '1', nivel: 'facil', intenso: false, zoom: false, retomada: false, cenGrande: false, semCenario: false };
 let cfg = { ...PADRAO };
 try { cfg = { ...PADRAO, ...JSON.parse(localStorage.getItem('pistasR.cfg') || '{}') }; } catch (e) {}
 const rapidoUrl = new URLSearchParams(location.search).has('rapido'); // só para testes; não fica salvo
@@ -23,7 +40,7 @@ const ehToque = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in win
 
 // ---------- mundo ----------
 const mundo = new Mundo($('#cena'), {
-  onHud: pintaHud, onTexto: texto, onContagem: contagem, onAviso: aviso, onPortal: (som) => texto(som === 'l' ? 'Agora é o som do L' : 'Agora é o som do R', som === 'l' ? 'azul' : 'rosa'),
+  onHud: pintaHud, onIcone: icone, onContagem: contagem, onAviso: aviso,
   onExercicio: async (p) => { const res = await Exercicio.abre(p, { ...cfg, rapido: cfg.rapido || rapidoUrl }, (q) => mundo.canvasFolha(q)); mundo.fimExercicio(res); },
   onFim: fim,
 });
@@ -33,6 +50,7 @@ let pistaSel = PISTAS.find((p) => p.id === cfg.pista) || PISTAS[0], nivelSel = N
 function aplicaCfg() {
   Object.assign(Audio.cfg, { musica: cfg.musica, efeitos: cfg.efeitos, volMusica: cfg.volMusica, volEfeitos: cfg.volEfeitos }); Audio.aplica();
   mundo.reduz = cfg.reduz; if (mundo.qualidade !== cfg.qualidade) mundo.defineQualidade(cfg.qualidade);
+  mundo.opcoes({ intenso: cfg.intenso, zoom: cfg.zoom, retomada: cfg.retomada, cenario: cfg.semCenario ? 'nenhum' : cfg.cenGrande ? 'grande' : 'normal' });
   $('#bMusica').setAttribute('aria-pressed', String(cfg.musica)); $('#bEfeitos').setAttribute('aria-pressed', String(cfg.efeitos)); $('#fps').hidden = !cfg.fps;
   $('#aAvaliaTxt').textContent = cfg.avalia === 'fono' ? 'Só o fonoaudiólogo deve dar as notas.' : 'A criança fala, se ouve e ganha 5 pontos por participar.';
   salva();
@@ -64,7 +82,7 @@ $('#cartoesPista').onclick = (e) => { const b = e.target.closest('[data-pista]')
 $('#cartoesNivel').onclick = (e) => { const b = e.target.closest('[data-nivel]'); if (!b) return; nivelSel = NIVEIS[b.dataset.nivel]; cfg.nivel = nivelSel.id; salva(); cartoes(); preparar(); };
 
 function preparar() {
-  const precisaInc = ehToque && 'DeviceOrientationEvent' in window;
+  const precisaInc = ehToque && 'DeviceOrientationEvent' in window && !nivelSel.faixas; // inclinação só no nível Difícil
   $('#prepInclinar').hidden = !precisaInc; pintaPrep();
   if (Mic.estado === 'ok' && !precisaInc) return comeca(); // nada a preparar
   mostra('tPreparar');
@@ -74,13 +92,13 @@ function pintaPrep() {
   $('#prepMicTxt').textContent = { nao: 'Usado no exercício de fala. Sem ele, o botão de pronunciar fica desligado.', ok: 'Microfone ligado.', negado: 'Não autorizado. Dá para jogar sem ele e autorizar depois.', sem: 'Este navegador não permite usar o microfone.' }[Mic.estado];
   m.textContent = Mic.estado === 'ok' ? 'Ligado' : 'Ligar microfone'; m.disabled = Mic.estado === 'ok' || Mic.estado === 'sem';
   const i = $('#prepInc'); i.closest('.prep-item').classList.toggle('ok', cfg.inclinar && incl.ativo); i.textContent = cfg.inclinar && incl.ativo ? 'Ativado' : 'Ativar';
-  $('#prepIncTxt').textContent = cfg.inclinar && incl.ativo ? 'Incline o aparelho para mover. Os botões continuam funcionando.' : 'Opcional: mova o besourinho inclinando o aparelho para os lados.';
+  $('#prepIncTxt').textContent = incl.falhou ? 'Este aparelho não liberou a inclinação. Use os botões na tela.' : cfg.inclinar && incl.ativo ? 'Incline o aparelho para mover. Os botões continuam funcionando.' : 'Opcional: mova o Tiriri inclinando o aparelho para os lados.';
 }
 $('#prepMic').onclick = async () => { await Mic.liga(); pintaPrep(); };
-$('#prepInc').onclick = async () => { if (cfg.inclinar && incl.ativo) { cfg.inclinar = false; } else { cfg.inclinar = await incl.liga(); if (!cfg.inclinar) texto('Não foi possível usar a inclinação', 'alerta'); } salva(); pintaPrep(); };
+$('#prepInc').onclick = async () => { if (cfg.inclinar && incl.ativo) { cfg.inclinar = false; } else { cfg.inclinar = await incl.liga(); incl.falhou = !cfg.inclinar; } salva(); pintaPrep(); };
 $('#prepJogar').onclick = () => comeca();
 
-function vaiMenu(tela = true) { mundo.menu(geraFase(PISTAS[0], NIVEIS.facil, 7), PISTAS[0], NIVEIS.facil); $('#hud').hidden = true; $('#bPausa').hidden = true; Audio.musica('menu'); aviso(null); if (tela) mostra('tTitulo'); }
+function vaiMenu(tela = true) { ['tPausa', 'tExercicio', 'tFim'].forEach((i) => ($('#' + i).hidden = true)); pilha.length = 0; Audio.abafa(1); mundo.menu(geraFase(PISTAS[0], NIVEIS.facil, 7), PISTAS[0], NIVEIS.facil); $('#hud').hidden = true; $('#bPausa').hidden = true; Audio.musica('menu'); aviso(null); if (tela) mostra('tTitulo'); }
 function comeca(p = pistaSel, n = nivelSel, seed) {
   pistaSel = p; nivelSel = n; $$('.tela').forEach((t) => (t.hidden = true)); $('#hud').hidden = false; $('#bPausa').hidden = false; $('#hudTextos').innerHTML = ''; aviso(null);
   mundo.comeca(geraFase(p, n, seed), p, n); Audio.musica('pista'); ult = {}; pintaHud(mundo); if (document.activeElement) document.activeElement.blur();
@@ -112,11 +130,12 @@ function pintaHud(m) {
   if (pr !== ult.pr) { ult.pr = pr; $('#hudProg').style.width = Math.min(100, pr) + '%'; }
   const chave = `${Math.ceil(m.boost * 4)}|${Math.ceil(m.escT * 4)}|${Math.ceil(m.turbo * 4)}`;
   if (chave !== ult.ef) { ult.ef = chave; const c = (nome, cor, v, max) => (v > 0 ? `<div class="chip" style="color:${cor}">${nome}<i><b style="width:${Math.min(100, (v / max) * 100)}%"></b></i></div>` : '');
-    $('#hudEfeitos').innerHTML = c('Estrela', '#39c6ff', m.boost, 4.5) + c('Campo de força', '#ff8ff0', m.escT, m.nivel.escudo) + c('Turbo', '#ffd23f', m.turbo, 2.2); }
+    $('#hudEfeitos').innerHTML = c(hic('estrela', 'cic'), '#39c6ff', m.boost, m.maxBoost) + c(hic('escudo', 'cic'), '#ff8ff0', m.escT, m.nivel.escudo) + c(hic(m.super > 0 ? 'super' : 'turbo', 'cic'), '#ffd23f', m.turbo, m.super > 0 ? 3.5 : 2.2); }
 }
 function texto(msg, tipo = '') { const c = $('#hudTextos'); while (c.children.length > 2) c.firstChild.remove(); const d = document.createElement('div'); d.className = tipo; d.textContent = msg; c.appendChild(d); setTimeout(() => d.remove(), 1500); }
-function contagem(n) { const c = $('#hudCont'); c.hidden = false; c.textContent = n || 'Já!'; c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; if (!n) setTimeout(() => (c.hidden = true), 700); }
-function aviso(p) { const a = $('#hudAviso'); a.hidden = !p; if (p) a.innerHTML = `Pegue: <em class="${p.som}">${p.w.toUpperCase()}</em>`; }
+function icone(nome, num, tipo = '') { const c = $('#hudTextos'); while (c.children.length > 2) c.firstChild.remove(); const d = document.createElement('div'); d.className = tipo; d.innerHTML = (nome ? hic(nome) : '') + (num ? `<b>${num}</b>` : ''); c.appendChild(d); setTimeout(() => d.remove(), 1500); }
+function contagem(n) { const c = $('#hudCont'); c.hidden = false; if (n) c.textContent = n; else c.innerHTML = hic('ja', 'hic grande'); c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; if (!n) setTimeout(() => (c.hidden = true), 700); }
+function aviso(p) { const a = $('#hudAviso'); a.hidden = !p; if (p) a.innerHTML = `${hic('alvo')}<em class="${p.som}">${p.w.toUpperCase()}</em>`; }
 
 // ---------- controles ----------
 const seg = { e: false, d: false };
@@ -136,7 +155,7 @@ $('#setaE').innerHTML = ic('esq'); $('#setaD').innerHTML = ic('dir');
 const incl = { ativo: false, dir: 0, armado: true,
   async liga() { try { if (typeof DeviceOrientationEvent === 'undefined') return false; if (typeof DeviceOrientationEvent.requestPermission === 'function') { if ((await DeviceOrientationEvent.requestPermission()) !== 'granted') return false; } if (!this.ativo) window.addEventListener('deviceorientation', (e) => this.le(e)); this.ativo = true; return true; } catch (e) { return false; } },
   le(e) {
-    if (!cfg.inclinar || e.gamma == null) { this.dir = 0; return; }
+    if (!cfg.inclinar || e.gamma == null || !livre()) { this.dir = 0; atualizaDir(); return; } // só no nível Difícil (movimento livre)
     const a = (screen.orientation && screen.orientation.angle) || window.orientation || 0, ang = (a === 90 ? e.beta : a === 270 || a === -90 ? -e.beta : e.gamma) * cfg.sens;
     if (livre()) this.dir = Math.max(-1, Math.min(1, Math.abs(ang) < 4 ? 0 : ang / 22));
     else { this.dir = 0; if (this.armado && Math.abs(ang) > 12) { passo(Math.sign(ang)); this.armado = false; } else if (Math.abs(ang) < 6) this.armado = true; }
@@ -169,18 +188,31 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => { const k = e.key; if (k === 'ArrowLeft' || k === 'a' || k === 'A') aperta('e', false); if (k === 'ArrowRight' || k === 'd' || k === 'D') aperta('d', false); });
 
 // ---------- barra e ajustes ----------
+const fsOk = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+const emTela = () => document.fullscreenElement || document.webkitFullscreenElement;
+function pintaTela() { const b = $('#bTela'); b.hidden = !fsOk; b.innerHTML = ic(emTela() ? 'telaSai' : 'telaCheia'); b.setAttribute('aria-label', emTela() ? 'Sair da tela cheia' : 'Tela cheia'); }
+$('#bTela').onclick = () => { const d = document.documentElement; if (emTela()) (document.exitFullscreen || document.webkitExitFullscreen).call(document); else (d.requestFullscreen || d.webkitRequestFullscreen).call(d); };
+['fullscreenchange', 'webkitfullscreenchange'].forEach((ev) => document.addEventListener(ev, () => { pintaTela(); setTimeout(redimensiona, 120); }));
+pintaTela();
 $('#bPausa').innerHTML = ic('pausa'); $('#bMusica').innerHTML = ic('nota', IC.corte); $('#bEfeitos').innerHTML = ic('som', IC.corte); $('#bAjuda').innerHTML = ic('ajuda');
 $('#bMusica').onclick = () => { cfg.musica = !cfg.musica; aplicaCfg(); }; $('#bEfeitos').onclick = () => { cfg.efeitos = !cfg.efeitos; aplicaCfg(); };
 $('#bAjuda').onclick = () => { if ($('#tAjuda').hidden) { if (['correndo', 'contagem'].includes(mundo.estado)) pausar(true); abre('tAjuda'); } };
-function preencheAjustes() { $('#aVolMus').value = cfg.volMusica; $('#aVolSfx').value = cfg.volEfeitos; $('#aInclinar').checked = cfg.inclinar; $('#aSens').value = cfg.sens; $('#aAvalia').value = cfg.avalia; $('#aRapido').checked = cfg.rapido; $('#aNome').value = cfg.nome; $('#aQual').value = cfg.qualidade; $('#aReduz').checked = cfg.reduz; $('#aFps').checked = cfg.fps; }
+function preencheAjustes() { $('#aVolMus').value = cfg.volMusica; $('#aVolSfx').value = cfg.volEfeitos; $('#aInclinar').checked = cfg.inclinar; $('#aSens').value = cfg.sens; $('#aAvalia').value = cfg.avalia; $('#aRapido').checked = cfg.rapido; $('#aNome').value = cfg.nome; $('#aQual').value = cfg.qualidade; $('#aReduz').checked = cfg.reduz; $('#aFps').checked = cfg.fps; $('#aIntenso').checked = cfg.intenso; $('#aZoom').checked = cfg.zoom; $('#aRetomada').checked = cfg.retomada; $('#aGrande').checked = cfg.cenGrande; $('#aSemCen').checked = cfg.semCenario; $('#aGrande').disabled = cfg.semCenario; }
 $('#tAjustes').addEventListener('input', async (e) => {
   const t = e.target;
   if (t.id === 'aVolMus') { cfg.volMusica = +t.value; cfg.musica = cfg.volMusica > 0; } if (t.id === 'aVolSfx') { cfg.volEfeitos = +t.value; cfg.efeitos = cfg.volEfeitos > 0; }
   if (t.id === 'aInclinar') { cfg.inclinar = t.checked && (await incl.liga()); t.checked = cfg.inclinar; }
   if (t.id === 'aSens') cfg.sens = +t.value; if (t.id === 'aAvalia') cfg.avalia = t.value; if (t.id === 'aRapido') cfg.rapido = t.checked; if (t.id === 'aNome') cfg.nome = t.value.trim();
+  if (t.id === 'aIntenso') cfg.intenso = t.checked; if (t.id === 'aZoom') cfg.zoom = t.checked; if (t.id === 'aRetomada') cfg.retomada = t.checked; if (t.id === 'aGrande') cfg.cenGrande = t.checked; if (t.id === 'aSemCen') { cfg.semCenario = t.checked; $('#aGrande').disabled = t.checked; }
   if (t.id === 'aQual') cfg.qualidade = t.value; if (t.id === 'aReduz') cfg.reduz = t.checked; if (t.id === 'aFps') cfg.fps = t.checked;
   aplicaCfg(); if (t.id === 'aVolSfx') Audio.toca('coletar');
 });
+
+// ---------- rolagem dos painéis: barra visível e aviso de que há mais conteúdo ----------
+function marcaRolagem() { $$('.painel').forEach((p) => { const sobra = p.scrollHeight - p.clientHeight; p.classList.toggle('rola', sobra > 4); p.classList.toggle('mais', sobra > 4 && p.scrollTop < sobra - 4); }); }
+document.addEventListener('scroll', (e) => { if (e.target.classList && e.target.classList.contains('painel')) marcaRolagem(); }, true);
+new MutationObserver(() => requestAnimationFrame(marcaRolagem)).observe(document.body, { attributes: true, attributeFilter: ['hidden'], subtree: true, childList: true });
+window.addEventListener('resize', marcaRolagem);
 
 // ---------- laço e início ----------
 function redimensiona() { mundo.redimensiona(window.innerWidth, window.innerHeight); }
@@ -196,5 +228,5 @@ function laco(agora) { requestAnimationFrame(laco); const dt = Math.min(0.05, (a
   await new Promise((r) => setTimeout(r, 3100)); $('#tAbertura').hidden = true;
   if (!pronto) { $('#tCarrega').hidden = false; await carga; }
   aplicaCfg(); $('#barra').hidden = false; requestAnimationFrame(laco); vaiMenu();
-  console.info(`Pistas do R Vibrante: carregado em ${Math.round(performance.now() - inicio)} ms`);
+  console.info(`Tiriri, o Besourinho: carregado em ${Math.round(performance.now() - inicio)} ms`);
 })();
