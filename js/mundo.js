@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { LARGURA, slug } from './dados.js';
+import { LARGURA, slug, vozPalavra, vozSilaba, silabaAlvo } from './dados.js';
 import { Audio } from './audio.js';
 
 const NOMES = ['besourinho', 'triturador', 'fosforo', 'estrela', 'pocao', 'portal_r', 'portal_l', 'rampa_salto', 'rampa_turbo', 'chegada'];
@@ -104,7 +104,7 @@ export class Mundo {
   async carrega(prog) {
     const ld = new GLTFLoader(); let n = 0;
     await Promise.all(NOMES.map(async (nome) => { const g = await ld.loadAsync(`assets/modelos/${nome}.glb`); MOD[nome] = { cena: g.scene, clips: g.animations }; otimiza(MOD[nome]); prog && prog(++n / NOMES.length); }));
-    try { const lista = await (await fetch('assets/palavras/lista.json')).json(); await Promise.all(lista.map((s) => new Promise((ok) => { const im = new Image(); im.onload = () => { IMGS.set(s, im); ok(); }; im.onerror = ok; im.src = `assets/palavras/${s}.png`; }))); } catch (e) { /* sem imagens ainda */ }
+    try { const lista = await (await fetch('assets/palavras/lista.json')).json(); await Promise.all(lista.map((s) => new Promise((ok) => { const im = new Image(); im.onload = () => { IMGS.set(s, im); ok(); }; im.onerror = ok; im.src = `assets/palavras/${s}.webp`; }))); } catch (e) { /* sem imagens ainda */ }
     this.criaPersonagens();
   }
 
@@ -280,9 +280,15 @@ export class Mundo {
     this.faixaAtual = this.fase.xs.length >> 1; this.feitas = new Set(); this.registro = []; this.tempo = 0; this.batidas = 0; this.rotBola = new THREE.Quaternion(); this.bola.visible = true; this.escudo.visible = false; this.entrada.passos = 0; this.limpaBola();
     this.som = 'r'; this.fimT = 0; this.cam.position.set(0, 3.2, 7); this.tremor = 0; this.besAng = 0;
   }
-  comeca(fase, pista, nivel) { this.montaFase(fase, pista, nivel); this.zera(); this.contagem(); }
-  contagem(rapida = false) { this.estado = 'contagem'; this.rapida = rapida; this.contT = rapida ? 1 : 0; this.contN = rapida ? 1 : 4; this.anima('idle'); }
-  pausa(v) { if (v && (this.estado === 'correndo' || this.estado === 'contagem')) { this.antes = this.estado; this.estado = 'pausa'; Audio.calaLacos(); } else if (!v && this.estado === 'pausa') { this.estado = this.antes === 'correndo' ? 'contagem' : this.antes; if (this.estado === 'contagem') { this.contT = 0; this.contN = 4; } } }
+  comeca(fase, pista, nivel) {
+    this.montaFase(fase, pista, nivel); this.zera(); this.contagem(false, true); this.cuidadoT = -99; this.nCuidado = 0;
+    // pré-carrega as vozes das palavras desta pista enquanto a corrida começa
+    const ps = new Map(); for (const it of fase.itens) { if (it.p) ps.set(it.p.w, it.p); if (it.alvo) ps.set(it.alvo.w, it.alvo); }
+    Audio.preCarrega([...ps.values()].flatMap((p) => [vozPalavra(p, 'n'), vozPalavra(p, 's'), vozSilaba(silabaAlvo(p), 1), vozSilaba(silabaAlvo(p), 3)]));
+  }
+  // contagem: 3, 2, 1 com a voz da Dálete; na largada conta 1, 2, 3 e já; retomada rápida dura 1 s
+  contagem(rapida = false, subindo = false) { this.estado = 'contagem'; this.rapida = rapida; this.subindo = subindo; this.contT = rapida ? 1 : 0; this.contN = rapida ? 1 : 4; this.anima('idle'); Audio.fala(rapida ? 'fr_continuar' : subindo ? 'fr_largada' : 'fr_contagem'); }
+  pausa(v) { if (v && (this.estado === 'correndo' || this.estado === 'contagem')) { this.antes = this.estado; this.estado = 'pausa'; Audio.calaLacos(); } else if (!v && this.estado === 'pausa') { if (this.antes === 'correndo' || this.antes === 'contagem') this.contagem(); else this.estado = this.antes; } }
 
   // usado nos testes: salta para um ponto da pista
   teleporta(s, x = 0) { this.s = s; this.x = x; this.objs.clear(); this.vivos = []; let i = this.itens.findIndex((q) => q.s > s - 10); this.iProx = i < 0 ? this.itens.length : i; for (const it of this.itens) { it.obj = null; if (it.s > s) it.feito = false; } const k = this.fase.xs.indexOf(x); if (k >= 0) this.faixaAtual = k; this.snap = true; }
@@ -298,7 +304,7 @@ export class Mundo {
   quadro(dt, manual = false) {
     if (this.congela && !manual) return; this.t += dt; const e = this.estado, f = this.fase; if (!f || !this.bola) { this.r.render(this.cena, this.cam); return; }
     if (e === 'contagem' && this.rapida) { this.contT -= dt; if (this.contT <= 0) { this.estado = 'correndo'; this.anima('push_walk'); } }
-    else if (e === 'contagem') { this.contT -= dt; if (this.contT <= 0) { this.contN--; this.contT = 0.72; if (this.contN > 0) { this.cb.onContagem(this.contN); Audio.toca('bipe'); } else { this.cb.onContagem(0); Audio.toca('bipe', { tom: 1.5 }); this.estado = 'correndo'; this.anima('push_walk'); } } }
+    else if (e === 'contagem') { this.contT -= dt; if (this.contT <= 0) { this.contN--; this.contT = 0.72; if (this.contN > 0) { this.cb.onContagem(this.subindo ? 4 - this.contN : this.contN); Audio.toca('bipe'); } else { this.cb.onContagem(0); Audio.toca('bipe', { tom: 1.5 }); this.estado = 'correndo'; this.anima('push_walk'); } } }
     if (e === 'correndo') this.corre(dt);
     else { Audio.laco('rolar', 0); Audio.laco('triturador_aviso', 0); }
     if (e === 'vitoria' || e === 'derrota') { this.fimT += dt; if (e === 'vitoria') { this.vel = Math.max(0, this.vel - dt * 9); this.s += this.vel * dt; this.gira(this.vel * dt, 0); if (Math.random() < dt * 14 && !this.reduz) this.confete(); } if (this.fimT > 2.7 && !this.avisou) { this.avisou = true; this.cb.onFim(this.resumo(e === 'vitoria')); } }
@@ -357,6 +363,7 @@ export class Mundo {
     }
     Audio.laco('rolar', this.pulo > 0.1 ? 0 : limita(this.vel / 14, 0.15, 0.7), 0.75 + this.vel / 22);
     Audio.laco('triturador_aviso', perto < 34 ? Math.pow(1 - perto / 34, 1.5) * 0.65 : 0);
+    if (perto < 24 && this.tempo - this.cuidadoT > 18 && this.nCuidado < 3) { this.cuidadoT = this.tempo; this.nCuidado++; Audio.fala('fr_cuidado', { seLivre: true }); }
     this.cb.onHud(this);
   }
   gira(ds, dx) { const r = Math.max(this.raio, 0.3), q = new THREE.Quaternion(); q.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -ds / r); this.rotBola.premultiply(q); q.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -dx / r); this.rotBola.premultiply(q); }
@@ -382,9 +389,9 @@ export class Mundo {
     else { this.pontos -= 5; Audio.toca('fosforo'); this.queima(); this.fx.emite(this.reduz ? 10 : 34, pos.setY(pos.y + 0.9), { cores: [0xff7b00, 0xffd23f, 0xff3b1f], vel: [0, 4, -this.vel * 0.4], rnd: 5, grav: 4, vida: 0.7, tam: [0.09, 0.09] }); this.fx.emite(this.reduz ? 3 : 9, pos, { cores: [0x3a3340, 0x5a5060], vel: [0, 2.2, 0], rnd: 1.2, grav: -1.5, vida: 1.1, tam: [0.3, 0.3] }); this.tremor = 0.4; this.vel *= 0.75; this.inv = 1.2; this.cb.onIcone('fogo', '-5', 'alerta'); }
     if (this.pontos < 5) this.perde();
   }
-  passaPortal(it) { this.som = it.som; Audio.toca('portal'); this.tocaClip(it.obj, 'pass'); this.trocaTema(it.som === 'l' ? this.defPista.temaL : this.defPista.tema); this.cb.onIcone(it.som === 'l' ? 'L' : 'R', null, it.som === 'l' ? 'azul' : 'rosa'); if (!this.reduz) this.brilho(this.bola.position, it.som === 'l' ? [0x0a66ff, 0xffffff, 0x39c6ff] : [0xe6007e, 0xffffff, 0xff8fab]); }
-  vence(it) { this.estado = 'vitoria'; this.fimT = 0; this.avisou = false; this.anima('idle'); this.tocaClip(it.obj, 'win'); Audio.calaLacos(); Audio.toca('vitoria'); this.cb.onAviso(null); for (let k = 0; k < 4; k++) this.confete(); }
-  perde() { this.estado = 'derrota'; this.fimT = 0; this.avisou = false; this.bola.visible = false; this.escudo.visible = false; Audio.calaLacos(); Audio.toca('desfaz'); Audio.toca('derrota', { atraso: 0.55 }); this.anima('defeated', true); this.cb.onAviso(null);
+  passaPortal(it) { this.som = it.som; Audio.toca('portal'); this.tocaClip(it.obj, 'pass'); this.trocaTema(it.som === 'l' ? this.defPista.temaL : this.defPista.tema); Audio.fala(it.som === 'l' ? 'fr_portal_l' : 'fr_portal_r'); this.cb.onIcone(it.som === 'l' ? 'L' : 'R', null, it.som === 'l' ? 'azul' : 'rosa'); if (!this.reduz) this.brilho(this.bola.position, it.som === 'l' ? [0x0a66ff, 0xffffff, 0x39c6ff] : [0xe6007e, 0xffffff, 0xff8fab]); }
+  vence(it) { this.estado = 'vitoria'; this.fimT = 0; this.avisou = false; this.anima('idle'); this.tocaClip(it.obj, 'win'); Audio.calaLacos(); Audio.toca('vitoria'); Audio.fala('fr_vitoria_a', { atraso: 0.5 }); this.cb.onAviso(null); for (let k = 0; k < 4; k++) this.confete(); }
+  perde() { this.estado = 'derrota'; this.fimT = 0; this.avisou = false; this.bola.visible = false; this.escudo.visible = false; Audio.calaLacos(); Audio.calaVoz(); Audio.toca('desfaz'); Audio.toca('derrota', { atraso: 0.55 }); this.anima('defeated', true); this.cb.onAviso(null);
     this.fx.emite(this.reduz ? 24 : 90, this.bola.position, { cores: [0xffffff, 0xf3efe4], vel: [0, 4, 0], rnd: 7, grav: 9, vida: 1.8, tam: [0.4, 0.3] }); this.tremor = 0.5; }
   resumo(vitoria) { return { vitoria, pontos: Math.round(this.pontos), raio: this.raio, palavras: this.registro, pontosFala: this.pontosFala, tempo: this.tempo, batidas: this.batidas, total: this.fase.palavrasNovas.length }; }
 

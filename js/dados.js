@@ -5,7 +5,7 @@ const B1 = P('pera|pe-RA,peru|pe-RU,siri|si-RI,touro|tou-RO,muro|mu-RO,cera|ce-R
 const B2 = P('barata|ba-RA-ta,pirata|pi-RA-ta,girafa|gi-RA-fa,coruja|co-RU-ja,coroa|co-RO-a,sereia|se-REI-a,areia|a-REI-a,morango|mo-RAN-go,buraco|bu-RA-co,cereja|ce-RE-ja,parede|pa-RE-de,farinha|fa-RI-nha,xarope|xa-RO-pe,peruca|pe-RU-ca,aranha|a-RA-nha,piranha|pi-RA-nha,periquito|pe-RI-qui-to,parafuso|pa-RA-fu-so,mariposa|ma-RI-po-sa,garoto|ga-RO-to,furacão|fu-RA-cão,coração|co-RA-ção,carimbo|ca-RIM-bo,guaraná|gua-RA-ná,careca|ca-RÉ-ca,curativo|cu-RA-ti-vo,urubu|u-RU-bu');
 const B3L = P('bola|bo-LA,bala|ba-LA,mala|ma-LA,vela|ve-LA,cola|co-LA,sala|sa-LA,mola|mo-LA,tela|te-LA,fila|fi-LA,vila|vi-LA,janela|ja-ne-LA,panela|pa-ne-LA,salada|sa-LA-da,galo|ga-LO,gelo|ge-LO,pulo|pu-LO,bolo|bo-LO,cavalo|ca-va-LO,balão|ba-LÃO,pilão|pi-LÃO');
 const B3D = P('caracol|ca-RA-col,pirulito|pi-RU-li-to,amarelo|a-ma-RÉ-lo,coleira|co-lei-RA,geladeira|ge-la-dei-RA');
-const PARES = [['barão|ba-RÃO', 'balão|ba-LÃO'], ['pirão|pi-RÃO', 'pilão|pi-LÃO'], ['cera|ce-RA', 'cela|ce-LA'], ['vara|va-RA', 'vala|va-LA'], ['caro|ca-RO', 'calo|ca-LO'], ['coro|co-RO', 'colo|co-LO'], ['sarada|sa-RA-da', 'salada|sa-LA-da']]
+const PARES = [['barão|ba-RÃO', 'balão|ba-LÃO'], ['pirão|pi-RÃO', 'pilão|pi-LÃO'], ['cera|ce-RA', 'cela|ce-LA'], ['vara|va-RA', 'vala|va-LA'], ['caro|ca-RO', 'calo|ca-LO'], ['coro|co-RO', 'colo|co-LO'], ['sarada|sa-RA-da', 'salada|sa-LA-da'], ['puro|pu-RO', 'pulo|pu-LO'], ['cara|ca-RA', 'cala|ca-LA'], ['tora|to-RA', 'tola|to-LA']]
   .map(([r, l]) => ({ r: P(r)[0], l: P(l)[0] }));
 const B4 = P('prato|PRA-to,presente|PRE-sen-te,princesa|PRIN-ce-sa,prego|PRÉ-go,praia|PRAI-a,primo|PRI-mo,braço|BRA-ço,bruxa|BRU-xa,brinco|BRIN-co,cobra|co-BRA,zebra|ze-BRA,cabra|ca-BRA,trem|TREM,três|TRÊS,trevo|TRE-vo,troféu|TRO-féu,trigo|TRI-go,quatro|qua-TRO,dragão|DRA-gão,pedra|pe-DRA,vidro|vi-DRO,quadro|qua-DRO,cravo|CRA-vo,cruz|CRUZ,creme|CRE-me,gruta|GRU-ta,grama|GRA-ma,tigre|ti-GRE,fruta|FRU-ta,frango|FRAN-go,cofre|co-FRE');
 
@@ -34,6 +34,10 @@ export const NIVEIS = {
 export const LARGURA = 6.4;
 export const posFaixas = (n) => (n === 3 ? [-2, 0, 2] : [-2.4, -1.2, 0, 1.2, 2.4]);
 export const slug = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+// nomes dos arquivos de voz gravados no Estúdio (é vira eh, ó vira oh)
+const sslug = (s) => slug(String(s).toLowerCase().replace(/é/g, 'eh').replace(/ó/g, 'oh'));
+export const vozPalavra = (p, tipo = 'n') => `pal_${slug(p.w)}_${tipo}`;
+export const vozSilaba = (s, vezes = 1) => `sil_${sslug(s)}_${vezes}`;
 export const silabaAlvo = (p) => (p.sil.split('-').find((x) => x === x.toUpperCase() && /[A-ZÀ-Ú]/.test(x)) || p.sil).toLowerCase();
 
 export function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }

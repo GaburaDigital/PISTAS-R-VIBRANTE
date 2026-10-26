@@ -1,7 +1,7 @@
 // Telas, ajustes, controles e ligação entre o mundo 3D, o áudio e o exercício de fala.
 import { Mundo, raioDe } from './mundo.js';
 import { Audio } from './audio.js';
-import { PISTAS, NIVEIS, geraFase } from './dados.js';
+import { PISTAS, NIVEIS, geraFase, vozPalavra } from './dados.js';
 import { Exercicio, Mic } from './exercicio.js';
 
 const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
@@ -30,7 +30,7 @@ const hic = (n, cls = 'hic') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hi
 const ic = (n, extra = '') => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${IC[n]}${extra}</svg>`;
 
 // ---------- ajustes ----------
-const PADRAO = { musica: true, efeitos: true, volMusica: 0.55, volEfeitos: 0.9, inclinar: false, sens: 1, avalia: 'fono', rapido: false, nome: '', qualidade: 'auto', reduz: false, fps: false, pista: '1', nivel: 'facil', intenso: false, zoom: false, retomada: false, cenGrande: false, semCenario: false };
+const PADRAO = { musica: true, efeitos: true, volMusica: 0.55, volEfeitos: 0.9, volVoz: 1, inclinar: false, sens: 1, avalia: 'fono', rapido: false, nome: '', qualidade: 'auto', reduz: false, fps: false, pista: '1', nivel: 'facil', intenso: false, zoom: false, retomada: false, cenGrande: false, semCenario: false };
 let cfg = { ...PADRAO };
 try { cfg = { ...PADRAO, ...JSON.parse(localStorage.getItem('pistasR.cfg') || '{}') }; } catch (e) {}
 const rapidoUrl = new URLSearchParams(location.search).has('rapido'); // só para testes; não fica salvo
@@ -48,7 +48,7 @@ window.__jogo = { mundo, cfg, Audio, Mic, iniciar: (p, n, seed) => comeca(p, n, 
 let pistaSel = PISTAS.find((p) => p.id === cfg.pista) || PISTAS[0], nivelSel = NIVEIS[cfg.nivel] || NIVEIS.facil;
 
 function aplicaCfg() {
-  Object.assign(Audio.cfg, { musica: cfg.musica, efeitos: cfg.efeitos, volMusica: cfg.volMusica, volEfeitos: cfg.volEfeitos }); Audio.aplica();
+  Object.assign(Audio.cfg, { musica: cfg.musica, efeitos: cfg.efeitos, volMusica: cfg.volMusica, volEfeitos: cfg.volEfeitos, voz: cfg.volVoz > 0, volVoz: cfg.volVoz }); Audio.aplica();
   mundo.reduz = cfg.reduz; if (mundo.qualidade !== cfg.qualidade) mundo.defineQualidade(cfg.qualidade);
   mundo.opcoes({ intenso: cfg.intenso, zoom: cfg.zoom, retomada: cfg.retomada, cenario: cfg.semCenario ? 'nenhum' : cfg.cenGrande ? 'grande' : 'normal' });
   $('#bMusica').setAttribute('aria-pressed', String(cfg.musica)); $('#bEfeitos').setAttribute('aria-pressed', String(cfg.efeitos)); $('#fps').hidden = !cfg.fps;
@@ -58,10 +58,12 @@ function aplicaCfg() {
 
 // ---------- telas ----------
 const pilha = [];
-function mostra(id) { $$('.tela').forEach((t) => { if (!['tAjustes', 'tAjuda', 'tPausa', 'tExercicio'].includes(t.id) || t.id === id) t.hidden = t.id !== id; }); foca(id); }
-function foca(id) { const t = $('#' + id); if (!t) return; const b = t.querySelector('[data-foco]') || t.querySelector('.pri') || t.querySelector('button'); if (b) b.focus({ preventScroll: true }); }
-function abre(id) { pilha.push(document.activeElement); $('#' + id).hidden = false; foca(id); if (id === 'tAjustes') preencheAjustes(); }
-function fecha(id) { $('#' + id).hidden = true; const a = pilha.pop(); if (a && a.focus) a.focus({ preventScroll: true }); }
+const VOZ_TELA = { tPista: 'fr_escolha_pista', tNivel: 'fr_escolha_nivel', tPreparar: 'fr_preparar' };
+function mostra(id) { $$('.tela').forEach((t) => { if (!['tAjustes', 'tAjuda', 'tPausa', 'tExercicio'].includes(t.id) || t.id === id) t.hidden = t.id !== id; }); foca(id); if (VOZ_TELA[id]) Audio.fala(VOZ_TELA[id]); }
+let focoAuto = false;
+function foca(id) { const t = $('#' + id); if (!t) return; const b = t.querySelector('[data-foco]') || t.querySelector('.pri') || t.querySelector('button'); if (b) { focoAuto = true; b.focus({ preventScroll: true }); focoAuto = false; } }
+function abre(id) { pilha.push(document.activeElement); $('#' + id).hidden = false; foca(id); if (id === 'tAjustes') preencheAjustes(); if (id === 'tAjuda') Audio.fala(['fr_ajuda1', 'fr_ajuda2', 'fr_ajuda3']); }
+function fecha(id) { if (id === 'tAjuda') Audio.calaVoz(); $('#' + id).hidden = true; const a = pilha.pop(); if (a && a.focus) a.focus({ preventScroll: true }); }
 const telaDeCima = () => ['tAjustes', 'tAjuda', 'tExercicio', 'tPausa', 'tFim', 'tPreparar', 'tNivel', 'tPista', 'tTitulo'].map((i) => $('#' + i)).find((t) => !t.hidden);
 
 document.addEventListener('click', (e) => {
@@ -77,6 +79,12 @@ function cartoes() {
   $('#cartoesPista').innerHTML = PISTAS.map((p, i) => `<button class="cartao" data-pista="${p.id}" style="background:${cores[i]}" ${p.id === pistaSel.id ? 'data-foco' : ''}><span class="num">${p.id}</span><b>${p.nome}</b><span>${p.exemplo}</span></button>`).join('');
   const cn = { facil: '#2a9d8f', normal: '#f48c06', dificil: '#d00000' };
   $('#cartoesNivel').innerHTML = Object.values(NIVEIS).map((n, i) => `<button class="cartao" data-nivel="${n.id}" style="background:${cn[n.id]}" ${n.id === nivelSel.id ? 'data-foco' : ''}><span class="pts">${[0, 1, 2].map((k) => `<i class="${k > i ? 'v' : ''}"></i>`).join('')}</span><b>${n.nome}</b><span>${n.desc}</span></button>`).join('');
+}
+// a voz fala o nome da pista ou do nível quando o cartão recebe foco (teclado, joystick) ou o mouse passa por cima
+const vozCartao = (b) => { if (!b) return; const n = b.dataset.pista ? 'fr_pista' + b.dataset.pista : 'fr_' + b.dataset.nivel, ag = performance.now(); if (n === vozCartao.n && ag - vozCartao.t < 1500) return; vozCartao.n = n; vozCartao.t = ag; Audio.fala(n); };
+for (const id of ['#cartoesPista', '#cartoesNivel']) {
+  $(id).addEventListener('focusin', (e) => { if (!focoAuto) vozCartao(e.target.closest('.cartao')); });
+  $(id).addEventListener('pointerover', (e) => { if (e.pointerType === 'mouse') { const b = e.target.closest('.cartao'); if (b && b !== vozCartao.ult) { vozCartao.ult = b; vozCartao(b); } } });
 }
 $('#cartoesPista').onclick = (e) => { const b = e.target.closest('[data-pista]'); if (!b) return; pistaSel = PISTAS.find((p) => p.id === b.dataset.pista); cfg.pista = pistaSel.id; salva(); cartoes(); mostra('tNivel'); };
 $('#cartoesNivel').onclick = (e) => { const b = e.target.closest('[data-nivel]'); if (!b) return; nivelSel = NIVEIS[b.dataset.nivel]; cfg.nivel = nivelSel.id; salva(); cartoes(); preparar(); };
@@ -119,7 +127,7 @@ function fim(r) {
   $('#fimMedalhas').innerHTML = [0, 1, 2].map((i) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.6 5.7 21l1.5-7L2 9.3l7-.8z" fill="${i < n ? '#ffd23f' : 'rgba(255,255,255,.18)'}" stroke="#1b1025" stroke-width="1.6" stroke-linejoin="round"/></svg>`).join('');
   $('#fimMedalhas').setAttribute('aria-label', `${n} de 3 medalhas`);
   $('#fimPalavras').innerHTML = r.palavras.map((p) => `<span class="${p.som}">${p.w}</span>`).join('') || '<i class="fraco">Nenhuma palavra praticada nesta corrida.</i>';
-  $('#fDeNovo').textContent = r.vitoria ? 'Jogar de novo' : 'Tentar de novo'; mostra('tFim');
+  $('#fDeNovo').textContent = r.vitoria ? 'Jogar de novo' : 'Tentar de novo'; mostra('tFim'); Audio.fala(r.vitoria ? 'fr_vitoria_b' : 'fr_derrota', { atraso: 0.3 });
 }
 
 // ---------- HUD ----------
@@ -135,7 +143,7 @@ function pintaHud(m) {
 function texto(msg, tipo = '') { const c = $('#hudTextos'); while (c.children.length > 2) c.firstChild.remove(); const d = document.createElement('div'); d.className = tipo; d.textContent = msg; c.appendChild(d); setTimeout(() => d.remove(), 1500); }
 function icone(nome, num, tipo = '') { const c = $('#hudTextos'); while (c.children.length > 2) c.firstChild.remove(); const d = document.createElement('div'); d.className = tipo; d.innerHTML = (nome ? hic(nome) : '') + (num ? `<b>${num}</b>` : ''); c.appendChild(d); setTimeout(() => d.remove(), 1500); }
 function contagem(n) { const c = $('#hudCont'); c.hidden = false; if (n) c.textContent = n; else c.innerHTML = hic('ja', 'hic grande'); c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; if (!n) setTimeout(() => (c.hidden = true), 700); }
-function aviso(p) { const a = $('#hudAviso'); a.hidden = !p; if (p) a.innerHTML = `${hic('alvo')}<em class="${p.som}">${p.w.toUpperCase()}</em>`; }
+function aviso(p) { const a = $('#hudAviso'); a.hidden = !p; if (p) Audio.fala(['fr_pegue', vozPalavra(p, 'n')]); if (p) a.innerHTML = `${hic('alvo')}<em class="${p.som}">${p.w.toUpperCase()}</em>`; }
 
 // ---------- controles ----------
 const seg = { e: false, d: false };
@@ -197,15 +205,17 @@ pintaTela();
 $('#bPausa').innerHTML = ic('pausa'); $('#bMusica').innerHTML = ic('nota', IC.corte); $('#bEfeitos').innerHTML = ic('som', IC.corte); $('#bAjuda').innerHTML = ic('ajuda');
 $('#bMusica').onclick = () => { cfg.musica = !cfg.musica; aplicaCfg(); }; $('#bEfeitos').onclick = () => { cfg.efeitos = !cfg.efeitos; aplicaCfg(); };
 $('#bAjuda').onclick = () => { if ($('#tAjuda').hidden) { if (['correndo', 'contagem'].includes(mundo.estado)) pausar(true); abre('tAjuda'); } };
-function preencheAjustes() { $('#aVolMus').value = cfg.volMusica; $('#aVolSfx').value = cfg.volEfeitos; $('#aInclinar').checked = cfg.inclinar; $('#aSens').value = cfg.sens; $('#aAvalia').value = cfg.avalia; $('#aRapido').checked = cfg.rapido; $('#aNome').value = cfg.nome; $('#aQual').value = cfg.qualidade; $('#aReduz').checked = cfg.reduz; $('#aFps').checked = cfg.fps; $('#aIntenso').checked = cfg.intenso; $('#aZoom').checked = cfg.zoom; $('#aRetomada').checked = cfg.retomada; $('#aGrande').checked = cfg.cenGrande; $('#aSemCen').checked = cfg.semCenario; $('#aGrande').disabled = cfg.semCenario; }
+function preencheAjustes() { $('#aVolVoz').value = cfg.volVoz; $('#aVolMus').value = cfg.volMusica; $('#aVolSfx').value = cfg.volEfeitos; $('#aInclinar').checked = cfg.inclinar; $('#aSens').value = cfg.sens; $('#aAvalia').value = cfg.avalia; $('#aRapido').checked = cfg.rapido; $('#aNome').value = cfg.nome; $('#aQual').value = cfg.qualidade; $('#aReduz').checked = cfg.reduz; $('#aFps').checked = cfg.fps; $('#aIntenso').checked = cfg.intenso; $('#aZoom').checked = cfg.zoom; $('#aRetomada').checked = cfg.retomada; $('#aGrande').checked = cfg.cenGrande; $('#aSemCen').checked = cfg.semCenario; $('#aGrande').disabled = cfg.semCenario; }
+let vozT;
 $('#tAjustes').addEventListener('input', async (e) => {
   const t = e.target;
+  if (t.id === 'aVolVoz') { cfg.volVoz = +t.value; }
   if (t.id === 'aVolMus') { cfg.volMusica = +t.value; cfg.musica = cfg.volMusica > 0; } if (t.id === 'aVolSfx') { cfg.volEfeitos = +t.value; cfg.efeitos = cfg.volEfeitos > 0; }
   if (t.id === 'aInclinar') { cfg.inclinar = t.checked && (await incl.liga()); t.checked = cfg.inclinar; }
   if (t.id === 'aSens') cfg.sens = +t.value; if (t.id === 'aAvalia') cfg.avalia = t.value; if (t.id === 'aRapido') cfg.rapido = t.checked; if (t.id === 'aNome') cfg.nome = t.value.trim();
   if (t.id === 'aIntenso') cfg.intenso = t.checked; if (t.id === 'aZoom') cfg.zoom = t.checked; if (t.id === 'aRetomada') cfg.retomada = t.checked; if (t.id === 'aGrande') cfg.cenGrande = t.checked; if (t.id === 'aSemCen') { cfg.semCenario = t.checked; $('#aGrande').disabled = t.checked; }
   if (t.id === 'aQual') cfg.qualidade = t.value; if (t.id === 'aReduz') cfg.reduz = t.checked; if (t.id === 'aFps') cfg.fps = t.checked;
-  aplicaCfg(); if (t.id === 'aVolSfx') Audio.toca('coletar');
+  aplicaCfg(); if (t.id === 'aVolSfx') Audio.toca('coletar'); if (t.id === 'aVolVoz' && e.type === 'input') { clearTimeout(vozT); vozT = setTimeout(() => Audio.fala('fr_n10_a'), 250); }
 });
 
 // ---------- rolagem dos painéis: barra visível e aviso de que há mais conteúdo ----------
@@ -228,5 +238,8 @@ function laco(agora) { requestAnimationFrame(laco); const dt = Math.min(0.05, (a
   await new Promise((r) => setTimeout(r, 3100)); $('#tAbertura').hidden = true;
   if (!pronto) { $('#tCarrega').hidden = false; await carga; }
   aplicaCfg(); $('#barra').hidden = false; requestAnimationFrame(laco); vaiMenu();
+  // frases da Dálete: carregadas em segundo plano; o título é falado na primeira tela
+  Audio.fala('fr_titulo', { atraso: 0.4 });
+  Audio.preCarrega(['fr_escolha_pista', 'fr_pista1', 'fr_pista2', 'fr_pista3', 'fr_pista4', 'fr_escolha_nivel', 'fr_facil', 'fr_normal', 'fr_dificil', 'fr_preparar', 'fr_largada', 'fr_contagem', 'fr_continuar', 'fr_fale_palavra', 'fr_sua_vez', 'fr_cuidado', 'fr_pegue', 'fr_portal_r', 'fr_portal_l', 'fr_vitoria_a', 'fr_vitoria_b', 'fr_derrota', 'fr_nao_ouvi', 'fr_microfone', 'fr_treino_a', 'fr_treino_b', ...['10', '5', '2'].flatMap((n) => ['a', 'b', 'c'].map((l) => `fr_n${n}_${l}`)), 'fr_ajuda1', 'fr_ajuda2', 'fr_ajuda3']);
   console.info(`Tiriri, o Besourinho: carregado em ${Math.round(performance.now() - inicio)} ms`);
 })();

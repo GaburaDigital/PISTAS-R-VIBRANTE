@@ -168,3 +168,10 @@ button{cursor:pointer;touch-action:manipulation}
   background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6' fill='none' stroke='%23ffd23f' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center bottom 2px/28px no-repeat,linear-gradient(rgba(42,20,88,0),#2a1458 70%)}
 .ex-boca.com-video{padding:0;background:none;opacity:1}
 .ex-boca video{width:clamp(120px,26vmin,200px);aspect-ratio:1;border-radius:50%;border:5px solid var(--sol);object-fit:cover;display:block;box-shadow:0 6px 0 rgba(0,0,0,.25);background:#000}
+
+/* voz: botão de ouvir a palavra e indicação de vez no treino */
+.ex-palavra .ouvir{vertical-align:middle;margin-left:.3em;width:1.25em;height:1.25em;border-radius:50%;border:3px solid var(--tinta);background:var(--sol);color:var(--tinta);display:inline-grid;place-items:center;padding:0;font-size:.62em;box-shadow:0 4px 0 rgba(0,0,0,.3)}
+.ex-palavra .ouvir .ic{width:.8em;height:.8em}
+.ex-vez{display:flex;align-items:center;gap:.4em;font-weight:900;font-size:1.25rem;padding:.3em 1em;border-radius:99px;background:rgba(57,198,255,.2);color:var(--azul)}
+.ex-vez.sua{background:rgba(255,210,63,.22);color:var(--sol);animation:pulsa .9s ease-in-out infinite alternate}
+@keyframes pulsa{to{transform:scale(1.06)}}

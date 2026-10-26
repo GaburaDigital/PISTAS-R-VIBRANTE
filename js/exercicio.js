@@ -1,11 +1,13 @@
 // Exercício de fala: pop-up da palavra, gravação com onda sonora, treino e nota.
 // Nesta etapa a nota é dada pelo adulto (ou é fixa no modo sem análise). O detector automático entra depois.
 import { Audio } from './audio.js';
-import { silabaAlvo } from './dados.js';
+import { silabaAlvo, vozPalavra, vozSilaba } from './dados.js';
 
 const $ = (s) => document.querySelector(s);
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
-const MSG = { 10: ['Incrível!', 'Perfeito!', 'Que R lindo!'], 5: ['Quase lá!', 'Muito bem, está chegando!', 'Boa! Só mais um pouquinho.'], 2: ['Boa tentativa!', 'Valeu o esforço!', 'Continue assim, você consegue!'], livre: ['Muito bem!', 'Boa!', 'Isso aí!'] };
+const MSG = { 10: ['Incrível!', 'Perfeito!', 'Que R lindo!'], 5: ['Quase lá!', 'Muito bem, está chegando!', 'Boa! Só mais um pouquinho.'], 2: ['Boa tentativa!', 'Valeu o esforço!', 'Continue assim, você consegue!'], livre: ['Valeu o esforço!', 'Continue assim, você consegue!'] };
+// arquivo de voz de cada mensagem (mesma ordem das listas acima)
+const VOZ_MSG = { 10: ['fr_n10_a', 'fr_n10_b', 'fr_n10_c'], 5: ['fr_n5_a', 'fr_n5_b', 'fr_n5_c'], 2: ['fr_n2_a', 'fr_n2_b', 'fr_n2_c'], livre: ['fr_n2_b', 'fr_n2_c'] };
 const sorteio = (l) => l[Math.floor(Math.random() * l.length)];
 const PONTOS_LIVRE = 5, PONTOS_TREINO = 5;
 
@@ -42,9 +44,11 @@ export const Exercicio = {
   abre(p, cfg, desenhaFolha) {
     this.cfg = cfg; this.p = p; this.treinou = false; this.token++;
     const cv = $('#exFolha'); cv.getContext('2d').drawImage(desenhaFolha(p), 0, 0);
-    $('#exPalavra').innerHTML = this.silabada(p); mostraBoca(p);
+    $('#exPalavra').innerHTML = this.silabada(p) + `<button class="ouvir" id="exOuvirPal" aria-label="Ouvir a palavra">${ic('som')}</button>`; mostraBoca(p);
+    $('#exOuvirPal').onclick = () => Audio.fala(vozPalavra(p, 'n'));
+    Audio.fala(vozPalavra(p, 'n'), { atraso: 0.45 });
     $('#tExercicio').hidden = false; Audio.abafa(0);
-    return new Promise((ok) => { this.ok = (res) => { $('#tExercicio').hidden = true; Audio.abafa(1, 0.5); ok(res); }; cfg.rapido ? this.telaRapida() : this.telaInicio(); });
+    return new Promise((ok) => { this.ok = (res) => { Audio.calaVoz(); $('#tExercicio').hidden = true; Audio.abafa(1, 0.5); ok(res); }; cfg.rapido ? this.telaRapida() : this.telaInicio(); });
   },
   silabada(p) { const ps = p.sil.split('-'); return ps.map((s) => (s === s.toUpperCase() && /[A-ZÀ-Ú]/.test(s) && ps.length > 1 ? `<u>${s.toLowerCase()}</u>` : s.toLowerCase())).join('<small>·</small>'); },
   poe(html) { const e = $('#exPasso'); e.innerHTML = html; const b = e.querySelector('[data-foco]') || e.querySelector('button'); if (b) b.focus({ preventScroll: true }); return e; },
@@ -69,7 +73,7 @@ export const Exercicio = {
     const d = e.querySelector('#exDireto'); if (d) d.onclick = () => this.telaNota(null);
   },
   telaSemMic() {
-    const txt = Mic.estado === 'sem' ? 'Este navegador não permite usar o microfone.' : 'O microfone está desligado. Quer autorizar agora?';
+    const txt = Mic.estado === 'sem' ? 'Este navegador não permite usar o microfone.' : 'O microfone está desligado. Quer autorizar agora?'; Audio.fala('fr_microfone');
     const e = this.poe(`<div class="ex-aviso">${txt}</div><div class="ex-botoes">${Mic.estado === 'sem' ? '' : '<button class="btn pri" id="exAut" data-foco>Autorizar microfone</button>'}<button class="btn" id="exVolta">Voltar</button></div>`);
     const a = e.querySelector('#exAut'); if (a) a.onclick = async () => { const ok = await Mic.liga(); if (ok) this.grava(); else this.telaInicio('Não foi possível ligar o microfone. Confira a permissão no navegador.'); };
     e.querySelector('#exVolta').onclick = () => this.telaInicio();
@@ -78,8 +82,9 @@ export const Exercicio = {
   async grava() {
     const tk = ++this.token, e = this.poe('<div class="ex-msg" id="exLeg">Prepare-se…</div><canvas class="ex-onda" id="exOnda" width="640" height="96"></canvas><div class="ex-tempo"><i id="exBarra"></i></div><button class="btn" id="exPara" hidden>Parar</button>');
     const cv = e.querySelector('#exOnda'), cx = cv.getContext('2d'), barra = e.querySelector('#exBarra'), niveis = [];
-    let fase = 'prep', t0 = performance.now(), rec = null, partes = [], fim = false;
+    let fase = 'prep', t0 = performance.now(), rec = null, partes = [], fim = false, falou = false, pico = 0;
     const PREP = 1500, GRAV = 3000;
+    Audio.fala('fr_fale_palavra').then(() => (falou = true)); setTimeout(() => (falou = true), 3500);
     const termina = () => { fim = true; };
     e.querySelector('#exPara').onclick = termina;
     try { if (window.MediaRecorder) { rec = new MediaRecorder(Mic.stream); rec.ondataavailable = (ev) => ev.data.size && partes.push(ev.data); } } catch (err) { rec = null; }
@@ -90,7 +95,8 @@ export const Exercicio = {
         niveis.push(Mic.nivel()); if (niveis.length > 80) niveis.shift();
         cx.clearRect(0, 0, 640, 96); cx.fillStyle = fase === 'grav' ? '#ff5d73' : '#7d6aa8';
         niveis.forEach((v, i) => { const h = Math.max(4, Math.min(1, Math.sqrt(v) * 2.2) * 88); cx.fillRect(640 - (niveis.length - i) * 8, 48 - h / 2, 5, h); });
-        if (fase === 'prep') { barra.style.width = (dt / PREP) * 100 + '%'; barra.style.background = '#7d6aa8'; if (dt >= PREP) { fase = 'grav'; t0 = agora; e.querySelector('#exLeg').textContent = 'Fale agora!'; e.querySelector('#exPara').hidden = false; Audio.toca('gravar_on'); if (rec) try { rec.start(); } catch (err) { rec = null; } } }
+        if (fase === 'grav') pico = Math.max(pico, niveis[niveis.length - 1]);
+        if (fase === 'prep') { barra.style.width = Math.min(100, (dt / PREP) * 100) + '%'; barra.style.background = '#7d6aa8'; if (dt >= PREP && falou) { fase = 'grav'; t0 = agora; e.querySelector('#exLeg').textContent = 'Fale agora!'; e.querySelector('#exPara').hidden = false; Audio.toca('gravar_on'); if (rec) try { rec.start(); } catch (err) { rec = null; } } }
         else { barra.style.background = ''; barra.style.width = (dt / GRAV) * 100 + '%'; if (dt >= GRAV || fim) return ok(); }
         requestAnimationFrame(laco);
       }; laco();
@@ -99,41 +105,45 @@ export const Exercicio = {
     Audio.toca('gravar_off'); let url = null;
     if (rec && rec.state !== 'inactive') { await new Promise((ok) => { rec.onstop = ok; rec.stop(); }); if (partes.length) url = URL.createObjectURL(new Blob(partes, { type: rec.mimeType })); }
     if (tk !== this.token) return;
-    this.telaNota(url);
+    this.telaNota(url, pico < 0.012);
   },
   htmlNotas() { return `<div class="ex-nota"><button class="btn verde" data-n="10" data-foco><b>10</b><span>Perfeito</span></button><button class="btn pri" data-n="5"><b>5</b><span>Quase</span></button><button class="btn azul" data-n="2"><b>2</b><span>Ainda não</span></button></div>`; },
   ligaNotas() { $('#exPasso').querySelectorAll('[data-n]').forEach((b) => (b.onclick = () => this.fecha(+b.dataset.n, +b.dataset.n))); },
-  telaNota(url) {
+  telaNota(url, mudo = false) {
+    if (mudo) Audio.fala('fr_nao_ouvi');
     const ouvir = url ? `<button class="btn" id="exOuvir">${ic('play')} Ouvir de novo</button>` : '';
     if (this.fono()) {
-      const e = this.poe(`<div class="ex-botoes">${ouvir}<button class="btn" id="exRefaz">${ic('mic')} Falar de novo</button></div><p class="fraco" style="margin:0">Nota do fonoaudiólogo (teclas 1, 2 e 3):</p>${this.htmlNotas()}`);
+      const e = this.poe(`${mudo ? '<div class="ex-aviso">Não ouvi. Vamos tentar de novo?</div>' : ''}<div class="ex-botoes">${ouvir}<button class="btn" id="exRefaz">${ic('mic')} Falar de novo</button></div><p class="fraco" style="margin:0">Nota do fonoaudiólogo (teclas 1, 2 e 3):</p>${this.htmlNotas()}`);
       this.ligaNotas(); e.querySelector('#exRefaz').onclick = () => (Mic.estado === 'ok' ? this.grava() : this.telaInicio());
     } else {
-      const e = this.poe(`<div class="ex-botoes">${ouvir}<button class="btn" id="exRefaz">${ic('mic')} Falar de novo</button><button class="btn grande pri" id="exFim" data-foco>Pronto!</button></div>`);
+      const e = this.poe(`${mudo ? '<div class="ex-aviso">Não ouvi. Vamos tentar de novo?</div>' : ''}<div class="ex-botoes">${ouvir}<button class="btn" id="exRefaz">${ic('mic')} Falar de novo</button><button class="btn grande pri" id="exFim" data-foco>Pronto!</button></div>`);
       e.querySelector('#exRefaz').onclick = () => this.grava(); e.querySelector('#exFim').onclick = () => this.fecha(PONTOS_LIVRE, null);
     }
-    const o = $('#exOuvir'); if (o) { const a = new window.Audio(url); o.onclick = () => { a.currentTime = 0; a.play(); }; }
+    const o = $('#exOuvir'); if (o) { const a = new window.Audio(url); o.onclick = () => { Audio.calaVoz(); a.currentTime = 0; a.play(); }; }
   },
 
   treino(i) {
-    const p = this.p, sil = silabaAlvo(p), passos = [['Sílaba', sil], ['Três vezes', `${sil}, ${sil}, ${sil}`], ['Devagar', null], ['Palavra', p.w]];
-    if (i >= passos.length) { this.treinou = true; Audio.toca('nota5'); return this.telaInicio('Treino completo! Mais 5 pontos. Agora é só pronunciar.'); }
-    const [rot, txt] = passos[i];
+    const p = this.p, sil = silabaAlvo(p), passos = [['Sílaba', sil, vozSilaba(sil, 1)], ['Três vezes', `${sil}, ${sil}, ${sil}`, vozSilaba(sil, 3)], ['Devagar', null, vozPalavra(p, 's')], ['Palavra', p.w, vozPalavra(p, 'n')]];
+    if (i >= passos.length) { this.treinou = true; Audio.toca('nota5'); Audio.fala(Math.random() < 0.5 ? 'fr_treino_a' : 'fr_treino_b'); return this.telaInicio('Treino completo! Mais 5 pontos. Agora é só pronunciar.'); }
+    const [rot, txt, voz] = passos[i];
     const e = this.poe(`<div class="ex-passos">${passos.map((_, k) => `<i class="${k < i ? 'f' : k === i ? 'a' : ''}"></i>`).join('')}</div>
       <p class="fraco" style="margin:0">${rot}</p><div class="ex-palavra">${txt === null ? this.silabada(p) : txt}</div>
-      <p class="fraco" style="margin:0;font-size:.85rem">A voz da Dálete entra aqui. Por enquanto, o adulto fala o modelo e a criança repete.</p>
-      <div class="ex-botoes"><button class="btn" id="exSai">Voltar</button><button class="btn grande pri" id="exProx" data-foco>${i === passos.length - 1 ? 'Concluir treino' : 'Próximo'}</button></div>`);
+      <div class="ex-vez" id="exVez">${ic('som')} Escute</div>
+      <div class="ex-botoes"><button class="btn" id="exSai">Voltar</button><button class="btn" id="exDeNovo">${ic('som')} Ouvir de novo</button><button class="btn grande pri" id="exProx" data-foco>${i === passos.length - 1 ? 'Concluir treino' : 'Próximo'}</button></div>`);
+    const toca = async () => { const v = e.querySelector('#exVez'); v.className = 'ex-vez'; v.innerHTML = `${ic('som')} Escute`; const ok = await Audio.fala([voz]); if (!ok || !v.isConnected) return; v.className = 'ex-vez sua'; v.innerHTML = `${ic('mic')} Sua vez!`; Audio.fala('fr_sua_vez'); };
+    toca(); e.querySelector('#exDeNovo').onclick = toca;
     e.querySelector('#exProx').onclick = () => { Audio.toca('ui_ok'); this.treino(i + 1); };
-    e.querySelector('#exSai').onclick = () => this.telaInicio();
+    e.querySelector('#exSai').onclick = () => { Audio.calaVoz(); this.telaInicio(); };
   },
 
   async fecha(pontos, nota) {
     this.token++; const total = pontos + (this.treinou ? PONTOS_TREINO : 0), chave = nota || (pontos ? 'livre' : null);
-    if (chave) { Audio.toca(nota === 10 ? 'nota10' : nota === 2 ? 'nota2' : 'nota5'); this.poe(`<div class="ex-msg">${sorteio(MSG[chave].filter((m) => this.p.som !== 'l' || !m.includes('R')))}</div><div class="ex-msg" style="color:#7ae582">+${total}</div>`); await espera(1150); }
+    if (chave) { Audio.toca(nota === 10 ? 'nota10' : nota === 2 ? 'nota2' : 'nota5'); const op = MSG[chave].map((m, k) => [m, VOZ_MSG[chave][k]]).filter(([m]) => this.p.som !== 'l' || !m.includes('R')), [m, voz] = sorteio(op);
+      this.poe(`<div class="ex-msg">${m}</div><div class="ex-msg" style="color:#7ae582">+${total}</div>`); await Promise.all([espera(1150), Promise.race([Audio.fala(voz, { atraso: 0.25 }), espera(2600)])]); }
     this.ok({ pontos: total, nota, treino: this.treinou, modo: this.cfg.rapido ? 'rapido' : this.cfg.avalia });
   },
   tecla(k) { if ($('#tExercicio').hidden) return false; const m = { 1: 10, 2: 5, 3: 2 }[k]; const b = m && $('#exPasso').querySelector(`[data-n="${m}"]`); if (b) { b.click(); return true; } return false; },
 };
 
-const ICS = { mic: '<path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>', ouvido: '<path d="M7 9a5 5 0 0 1 10 0c0 3-3 4-3 7a3 3 0 0 1-5.5 1.6"/><path d="M10 10a2 2 0 0 1 4 0"/>', play: '<path d="M7 4l13 8-13 8z" fill="currentColor"/>' };
+const ICS = { som: '<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/>', mic: '<path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>', ouvido: '<path d="M7 9a5 5 0 0 1 10 0c0 3-3 4-3 7a3 3 0 0 1-5.5 1.6"/><path d="M10 10a2 2 0 0 1 4 0"/>', play: '<path d="M7 4l13 8-13 8z" fill="currentColor"/>' };
 function ic(n) { return `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICS[n]}</svg>`; }

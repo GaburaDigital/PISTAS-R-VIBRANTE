@@ -4,8 +4,9 @@ const SFX = ['coletar', 'repetida', 'rolar', 'desfaz', 'triturador_aviso', 'trit
 const MUS = ['menu', 'pista'];
 
 export const Audio = {
-  ctx: null, bufs: {}, mestre: null, gSfx: null, gMus: null, gMusDuck: null, lacos: {}, musAtual: null, musNome: '',
-  cfg: { musica: true, efeitos: true, volMusica: 0.55, volEfeitos: 0.9 },
+  ctx: null, bufs: {}, mestre: null, gSfx: null, gMus: null, gMusDuck: null, gVoz: null, lacos: {}, musAtual: null, musNome: '',
+  vozes: new Map(), falando: null, abafoBase: 1,
+  cfg: { musica: true, efeitos: true, volMusica: 0.55, volEfeitos: 0.9, voz: true, volVoz: 1 },
 
   inicia() {
     if (this.ctx) return;
@@ -13,12 +14,13 @@ export const Audio = {
     this.mestre = this.ctx.createGain(); this.mestre.connect(this.ctx.destination);
     this.gSfx = this.ctx.createGain(); this.gSfx.connect(this.mestre);
     this.gMus = this.ctx.createGain(); this.gMusDuck = this.ctx.createGain(); this.gMus.connect(this.gMusDuck); this.gMusDuck.connect(this.mestre);
+    this.gVoz = this.ctx.createGain(); this.gVoz.connect(this.mestre);
     this.aplica();
     const destrava = () => { if (this.ctx.state !== 'running') this.ctx.resume(); };
     ['pointerdown', 'keydown', 'touchend'].forEach((e) => window.addEventListener(e, destrava, { passive: true }));
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.ctx.suspend(); else this.ctx.resume(); });
   },
-  aplica() { if (!this.ctx) return; this.gSfx.gain.value = this.cfg.efeitos ? this.cfg.volEfeitos : 0; this.gMus.gain.value = this.cfg.musica ? this.cfg.volMusica : 0; },
+  aplica() { if (!this.ctx) return; this.gVoz.gain.value = this.cfg.voz ? this.cfg.volVoz * 1.15 : 0; this.gSfx.gain.value = this.cfg.efeitos ? this.cfg.volEfeitos : 0; this.gMus.gain.value = this.cfg.musica ? this.cfg.volMusica : 0; },
 
   async carrega(prog) {
     this.inicia();
@@ -51,5 +53,33 @@ export const Audio = {
     const s = this.ctx.createBufferSource(), g = this.ctx.createGain(); s.buffer = b; s.loop = true; g.gain.value = 0; g.gain.setTargetAtTime(1, t, 0.4); s.connect(g); g.connect(this.gMus); s.start(); this.musAtual = { s, g };
   },
   // abaixa a música (exercício de fala: silêncio total para não entrar no microfone)
-  abafa(v, tempo = 0.15) { if (this.ctx) this.gMusDuck.gain.setTargetAtTime(v, this.ctx.currentTime, tempo); },
+  abafa(v, tempo = 0.15) { this.abafoBase = v; if (this.ctx) this.gMusDuck.gain.setTargetAtTime(this.falando ? Math.min(v, 0.3) : v, this.ctx.currentTime, tempo); },
+
+  // ---------- voz da Dálete: carregada sob demanda e guardada ----------
+  listaVoz: fetch('assets/voz/lista.json').then((r) => r.json()).then((l) => new Set(l)).catch(() => null),
+  async carregaVoz(nome) {
+    if (!this.ctx) this.inicia(); if (this.vozes.has(nome)) return this.vozes.get(nome);
+    const lista = await this.listaVoz; if (lista && !lista.has(nome)) return null; // sem gravação (ex.: Pista 4)
+    if (this.vozes.has(nome)) return this.vozes.get(nome);
+    const pr = fetch(`assets/voz/${nome}.mp3`).then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then((ab) => new Promise((ok, erro) => this.ctx.decodeAudioData(ab, ok, erro))).catch(() => null);
+    this.vozes.set(nome, pr); return pr;
+  },
+  preCarrega(nomes) { let i = 0; const prox = () => { if (i < nomes.length) this.carregaVoz(nomes[i++]).then(prox); }; for (let k = 0; k < 4; k++) prox(); },
+  calaVoz() { if (this.falando) { try { this.falando.s.onended = null; this.falando.s.stop(); } catch (e) {} this.falando.fim(); } },
+  // toca uma ou mais falas em sequência; uma fala nova interrompe a anterior. Resolve quando termina (ou se não existir).
+  async fala(nomes, { atraso = 0, seLivre = false } = {}) {
+    if (seLivre && this.falando) return false;
+    nomes = [].concat(nomes).filter(Boolean); this.calaVoz(); const meu = (this.vezFala = (this.vezFala || 0) + 1);
+    if (atraso) await new Promise((r) => setTimeout(r, atraso * 1000));
+    for (const n of nomes) {
+      const b = await this.carregaVoz(n); if (meu !== this.vezFala) return false; if (!b || !this.ctx || this.ctx.state !== 'running' || !this.cfg.voz) continue;
+      await new Promise((ok) => {
+        const s = this.ctx.createBufferSource(); s.buffer = b; s.connect(this.gVoz);
+        const fim = () => { if (this.falando && this.falando.s === s) { this.falando = null; this.gMusDuck.gain.setTargetAtTime(this.abafoBase, this.ctx.currentTime, 0.25); } ok(); };
+        this.falando = { s, fim }; s.onended = fim; this.gMusDuck.gain.setTargetAtTime(Math.min(this.abafoBase, 0.3), this.ctx.currentTime, 0.08); s.start();
+      });
+      if (meu !== this.vezFala) return false;
+    }
+    return true;
+  },
 };
