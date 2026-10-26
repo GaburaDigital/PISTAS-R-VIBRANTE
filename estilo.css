@@ -14,6 +14,7 @@ button{cursor:pointer;touch-action:manipulation}
 .tela{position:fixed;inset:0;display:grid;place-items:center;padding:calc(14px + var(--sa-t)) calc(14px + var(--sa-r)) calc(14px + var(--sa-b)) calc(14px + var(--sa-l));z-index:20;overflow:auto}
 .tela.escura{background:rgba(27,16,37,.62);z-index:80}
 #tAjustes,#tAjuda{z-index:85}
+#tConfirma{z-index:88}
 .painel{background:linear-gradient(180deg,#3b1d7a,#2a1458);border:4px solid var(--sol);border-radius:28px;padding:clamp(14px,3vmin,26px);width:min(640px,100%);
   box-shadow:0 14px 0 rgba(0,0,0,.25),0 30px 60px rgba(0,0,0,.35);max-height:100%}
 .painel.estreito{width:min(420px,100%)}.painel.largo{width:min(900px,100%)}
@@ -230,3 +231,11 @@ button{cursor:pointer;touch-action:manipulation}
 @media(max-width:560px){.av-cab .tiriri{width:58px;height:58px}.graficos{grid-template-columns:1fr}.rodape .btn{flex:1 1 auto}}
 .btn.perigo-forte{background:#d00000;color:#fff}
 @media(max-width:700px){.tela:not(#tAbertura):not(#tTitulo){padding-top:calc(64px + var(--sa-t))}.painel{max-height:calc(100dvh - 78px - var(--sa-t) - var(--sa-b))}.hist-tab td,.hist-tab th{padding:.35em .4em}.so-largo{display:none}}
+
+/* palpite do detector (em teste) */
+.ex-palpite{border:2px dashed rgba(255,255,255,.45);border-radius:14px;padding:.45rem .8rem;max-width:520px;width:100%;text-align:left;background:rgba(255,255,255,.08);color:#fff}
+.ex-palpite p{margin:.15rem 0;color:#fff}.ex-palpite p.fraco{color:rgba(255,255,255,.82);font-size:.9rem}
+.ex-palpite .tag{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#d9cff5}
+.ex-palpite .nota{font-size:1.5rem;margin-right:.2rem}.ex-palpite.n10 .nota{color:#7ae582}.ex-palpite.n5 .nota{color:#ffd23f}.ex-palpite.n2 .nota{color:#7cc4ff}
+.ex-palpite.sem{border-style:dotted}.ex-sil{background:#ffd23f;color:#2a1650;border-radius:6px;padding:0 .3em}
+.ex-nota .btn.sugerido{outline:4px dashed #fff;outline-offset:3px}

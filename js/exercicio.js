@@ -1,7 +1,9 @@
 // Exercício de fala: pop-up da palavra, gravação com onda sonora, treino e nota.
-// Nesta etapa a nota é dada pelo adulto (ou é fixa no modo sem análise). O detector automático entra depois.
+// A nota é sempre do fonoaudiólogo (ou fixa no modo sem análise). No modo "Automático (em teste)" o detector
+// mostra um palpite na hora da nota; o fono confere e decide.
 import { Audio } from './audio.js';
-import { silabaAlvo, vozPalavra, vozSilaba } from './dados.js';
+import { silabaAlvo, vozPalavra, vozSilaba, slug } from './dados.js';
+import { referencia, avalia, analisavel, MSG_ENCONTRO } from './analise.js';
 
 const $ = (s) => document.querySelector(s);
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -9,6 +11,14 @@ const MSG = { 10: ['Incrível!', 'Perfeito!', 'Que R lindo!'], 5: ['Quase lá!',
 // arquivo de voz de cada mensagem (mesma ordem das listas acima)
 const VOZ_MSG = { 10: ['fr_n10_a', 'fr_n10_b', 'fr_n10_c'], 5: ['fr_n5_a', 'fr_n5_b', 'fr_n5_c'], 2: ['fr_n2_a', 'fr_n2_b', 'fr_n2_c'], livre: ['fr_n2_b', 'fr_n2_c'] };
 const sorteio = (l) => l[Math.floor(Math.random() * l.length)];
+const NOTA_NOME = { 10: 'Perfeito', 5: 'Quase', 2: 'Ainda não' }, CONF_NOME = { alta: 'confiança alta', media: 'confiança média', baixa: 'confiança baixa' };
+
+// modelo da Dálete (fala normal) de cada palavra, calculado uma vez
+const REFS = new Map();
+function refPalavra(p) {
+  const k = slug(p.w); if (!REFS.has(k)) REFS.set(k, Audio.carregaVoz(vozPalavra(p, 'n')).then((b) => (b ? referencia(b.getChannelData(0), b.sampleRate, p) : null)).catch(() => null));
+  return REFS.get(k);
+}
 const PONTOS_LIVRE = 5, PONTOS_TREINO = 5;
 
 // vídeos da boquinha: um por sílaba (ra, re, pra...). Sem o vídeo exato, usa a mesma vogal com R ou L.
@@ -32,8 +42,16 @@ export const Mic = {
   async liga() {
     if (!this.suportado()) { this.estado = 'sem'; return false; }
     try { this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-      Audio.inicia(); const src = Audio.ctx.createMediaStreamSource(this.stream); this.an = Audio.ctx.createAnalyser(); this.an.fftSize = 1024; src.connect(this.an); this.estado = 'ok'; return true; }
+      Audio.inicia(); const src = Audio.ctx.createMediaStreamSource(this.stream); this.src = src; this.an = Audio.ctx.createAnalyser(); this.an.fftSize = 1024; src.connect(this.an); this.estado = 'ok'; return true; }
     catch (e) { this.estado = 'negado'; return false; }
+  },
+  // captura o som cru (para o detector), independente do formato do MediaRecorder de cada navegador
+  captura() {
+    if (!this.src || !Audio.ctx.createScriptProcessor) return null;
+    const sp = Audio.ctx.createScriptProcessor(4096, 1, 1), mudo = Audio.ctx.createGain(), partes = []; let ativo = false; mudo.gain.value = 0;
+    sp.onaudioprocess = (e) => { if (ativo) partes.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+    this.src.connect(sp); sp.connect(mudo); mudo.connect(Audio.ctx.destination);
+    return { liga: () => (ativo = true), fim: () => { ativo = false; try { this.src.disconnect(sp); sp.disconnect(); mudo.disconnect(); } catch (e) {} const n = partes.reduce((a, x) => a + x.length, 0), y = new Float32Array(n); let o = 0; for (const x of partes) { y.set(x, o); o += x.length; } return { y, sr: Audio.ctx.sampleRate }; } };
   },
   nivel() { if (!this.an) return 0; const b = new Float32Array(this.an.fftSize); this.an.getFloatTimeDomainData(b); let s = 0; for (let i = 0; i < b.length; i++) s += b[i] * b[i]; return Math.sqrt(s / b.length); },
 };
@@ -42,7 +60,8 @@ export const Exercicio = {
   cfg: null, token: 0,
   // abre o pop-up e devolve { pontos, nota, treino, modo }
   abre(p, cfg, desenhaFolha) {
-    this.cfg = cfg; this.p = p; this.treinou = false; this.token++; this.tentativas = 0; this.gravou = false;
+    this.cfg = cfg; this.p = p; this.treinou = false; this.token++; this.tentativas = 0; this.gravou = false; this.palpite = null;
+    if (cfg.avalia === 'auto' && !cfg.rapido && !cfg.semMic && analisavel(p)) refPalavra(p);
     const cv = $('#exFolha'); cv.getContext('2d').drawImage(desenhaFolha(p), 0, 0);
     $('#exPalavra').innerHTML = this.silabada(p) + `<button class="ouvir" id="exOuvirPal" aria-label="Ouvir a palavra">${ic('som')}</button>`; mostraBoca(p);
     $('#exOuvirPal').onclick = () => Audio.fala(vozPalavra(p, 'n'));
@@ -52,7 +71,8 @@ export const Exercicio = {
   },
   silabada(p) { const ps = p.sil.split('-'); return ps.map((s) => (s === s.toUpperCase() && /[A-ZÀ-Ú]/.test(s) && ps.length > 1 ? `<u>${s.toLowerCase()}</u>` : s.toLowerCase())).join('<small>·</small>'); },
   poe(html) { const e = $('#exPasso'); e.innerHTML = html; const b = e.querySelector('[data-foco]') || e.querySelector('button'); if (b) b.focus({ preventScroll: true }); return e; },
-  fono() { return this.cfg.avalia === 'fono'; },
+  fono() { return this.cfg.avalia === 'fono' || this.cfg.avalia === 'auto'; },
+  auto() { return this.cfg.avalia === 'auto'; },
 
   telaRapida() {
     if (this.fono()) { this.poe(`<p class="fraco">Exercício rápido: escolha a nota.</p>${this.htmlNotas()}`); this.ligaNotas(); }
@@ -96,6 +116,7 @@ export const Exercicio = {
     Audio.fala('fr_fale_palavra').then(() => (falou = true)); setTimeout(() => (falou = true), 3500);
     const termina = () => { fim = true; };
     e.querySelector('#exPara').onclick = termina;
+    const cap = this.auto() ? Mic.captura() : null;
     try { if (window.MediaRecorder) { rec = new MediaRecorder(Mic.stream); rec.ondataavailable = (ev) => ev.data.size && partes.push(ev.data); } } catch (err) { rec = null; }
     await new Promise((ok) => {
       const laco = () => {
@@ -105,24 +126,46 @@ export const Exercicio = {
         cx.clearRect(0, 0, 640, 96); cx.fillStyle = fase === 'grav' ? '#ff5d73' : '#7d6aa8';
         niveis.forEach((v, i) => { const h = Math.max(4, Math.min(1, Math.sqrt(v) * 2.2) * 88); cx.fillRect(640 - (niveis.length - i) * 8, 48 - h / 2, 5, h); });
         if (fase === 'grav') pico = Math.max(pico, niveis[niveis.length - 1]);
-        if (fase === 'prep') { barra.style.width = Math.min(100, (dt / PREP) * 100) + '%'; barra.style.background = '#7d6aa8'; if (dt >= PREP && falou) { fase = 'grav'; t0 = agora; e.querySelector('#exLeg').textContent = 'Fale agora!'; e.querySelector('#exPara').hidden = false; Audio.toca('gravar_on'); if (rec) try { rec.start(); } catch (err) { rec = null; } } }
+        if (fase === 'prep') { barra.style.width = Math.min(100, (dt / PREP) * 100) + '%'; barra.style.background = '#7d6aa8'; if (dt >= PREP && falou) { fase = 'grav'; t0 = agora; e.querySelector('#exLeg').textContent = 'Fale agora!'; e.querySelector('#exPara').hidden = false; Audio.toca('gravar_on'); if (cap) cap.liga(); if (rec) try { rec.start(); } catch (err) { rec = null; } } }
         else { barra.style.background = ''; barra.style.width = (dt / GRAV) * 100 + '%'; if (dt >= GRAV || fim) return ok(); }
         requestAnimationFrame(laco);
       }; laco();
     });
     if (tk !== this.token) return;
+    const cru = cap ? cap.fim() : null; this.ultimoSom = cru;
     Audio.toca('gravar_off'); let url = null;
-    if (rec && rec.state !== 'inactive') { await new Promise((ok) => { rec.onstop = ok; rec.stop(); }); if (partes.length) url = URL.createObjectURL(new Blob(partes, { type: rec.mimeType })); }
+    if (rec && rec.state !== 'inactive') { await new Promise((ok) => { rec.onstop = ok; rec.stop(); }); let blob = null; if (partes.length) { blob = new Blob(partes, { type: rec.mimeType }); url = URL.createObjectURL(blob); } this.ultimoBlob = blob; } else this.ultimoBlob = null;
     if (tk !== this.token) return;
-    this.telaNota(url, pico < 0.012);
+    const mudo = pico < 0.012;
+    if (this.auto() && !mudo) {
+      if (!analisavel(this.p)) { this.palpite = { nota: null, motivo: MSG_ENCONTRO }; return this.telaNota(url, mudo); }
+      this.poe('<div class="ex-msg">Analisando…</div>'); this.palpite = null;
+      const ref = await refPalavra(this.p); if (tk !== this.token) return;
+      await espera(30);
+      // som para o detector: a gravação do MediaRecorder (feita fora da tela, sem falhas) ou, se não der para decodificar, a captura direta
+      let som = null; if (this.ultimoBlob) try { const ab = await this.ultimoBlob.arrayBuffer(); const b = await new Promise((ok, erro) => Audio.ctx.decodeAudioData(ab, ok, erro)); som = { y: b.getChannelData(0), sr: b.sampleRate }; } catch (err) { som = null; }
+      if (!som || som.y.length < som.sr * 0.5) som = cru; this.ultimoSom = som; if (tk !== this.token) return;
+      try { this.palpite = !som || !som.y.length ? { nota: null, motivo: 'Este navegador não entregou o som para análise.' } : !ref ? { nota: null, motivo: 'Modelo da palavra indisponível.' } : avalia(som.y, som.sr, ref, this.p); }
+      catch (err) { console.warn(err); this.palpite = { nota: null, motivo: 'Não foi possível analisar esta gravação.' }; }
+      if (tk !== this.token) return;
+    }
+    this.telaNota(url, mudo);
   },
-  htmlNotas() { return `<div class="ex-nota"><button class="btn verde" data-n="10" data-foco><b>10</b><span>Perfeito</span></button><button class="btn pri" data-n="5"><b>5</b><span>Quase</span></button><button class="btn azul" data-n="2"><b>2</b><span>Ainda não</span></button></div>`; },
+  htmlPalpite() {
+    const g = this.palpite; if (!this.auto() || !g) return '';
+    const sil = `<b class="ex-sil">${silabaAlvo(this.p)}</b>`;
+    if (g.nota == null) return `<div class="ex-palpite sem"><span class="tag">Detector em teste</span><p>Sem palpite para ${sil}: ${g.motivo}</p></div>`;
+    return `<div class="ex-palpite n${g.nota}"><span class="tag">Palpite do detector (em teste)</span><p><b class="nota">${g.nota}</b> ${NOTA_NOME[g.nota]} · ${CONF_NOME[g.confianca]}</p><p class="fraco">Sílaba ${sil}. ${g.motivo}</p></div>`;
+  },
+  htmlNotas(sug = null) { const f = (n) => (sug ? sug === n : n === 10) ? ' data-foco' : '', s = (n) => (sug === n ? ' sugerido' : '');
+    return `<div class="ex-nota"><button class="btn verde${s(10)}" data-n="10"${f(10)}><b>10</b><span>Perfeito</span></button><button class="btn pri${s(5)}" data-n="5"${f(5)}><b>5</b><span>Quase</span></button><button class="btn azul${s(2)}" data-n="2"${f(2)}><b>2</b><span>Ainda não</span></button></div>`; },
   ligaNotas() { $('#exPasso').querySelectorAll('[data-n]').forEach((b) => (b.onclick = () => this.fecha(+b.dataset.n, +b.dataset.n))); },
   telaNota(url, mudo = false) {
-    if (mudo) Audio.fala('fr_nao_ouvi');
+    if (mudo) { Audio.fala('fr_nao_ouvi'); this.palpite = null; }
     const ouvir = url ? `<button class="btn" id="exOuvir">${ic('play')} Ouvir de novo</button>` : '';
     if (this.fono()) {
-      const e = this.poe(`${mudo ? '<div class="ex-aviso">Não ouvi. Vamos tentar de novo?</div>' : ''}<div class="ex-botoes">${ouvir}<button class="btn" id="exRefaz">${ic('mic')} Falar de novo</button></div><p class="fraco" style="margin:0">Nota do fonoaudiólogo (teclas 1, 2 e 3):</p>${this.htmlNotas()}`);
+      const g = !mudo && this.palpite && this.palpite.nota != null ? this.palpite.nota : null;
+      const e = this.poe(`${mudo ? '<div class="ex-aviso">Não ouvi. Vamos tentar de novo?</div>' : this.htmlPalpite()}<div class="ex-botoes">${ouvir}<button class="btn" id="exRefaz">${ic('mic')} Falar de novo</button></div><p class="fraco" style="margin:0">${g ? 'Confira e dê a sua nota' : 'Nota do fonoaudiólogo'} (teclas 1, 2 e 3):</p>${this.htmlNotas(g)}`);
       this.ligaNotas(); e.querySelector('#exRefaz').onclick = () => (Mic.estado === 'ok' ? this.grava() : this.telaInicio());
     } else {
       const e = this.poe(`${mudo ? '<div class="ex-aviso">Não ouvi. Vamos tentar de novo?</div>' : ''}<div class="ex-botoes">${ouvir}<button class="btn" id="exRefaz">${ic('mic')} Falar de novo</button><button class="btn grande pri" id="exFim" data-foco>Pronto!</button></div>`);
@@ -150,7 +193,7 @@ export const Exercicio = {
     if (chave) { Audio.toca(nota === 10 ? 'nota10' : nota === 2 ? 'nota2' : 'nota5'); const op = MSG[chave].map((m, k) => [m, VOZ_MSG[chave][k]]).filter(([m]) => this.p.som !== 'l' || !m.includes('R')), [m, voz] = sorteio(op);
       this.poe(`<div class="ex-msg">${m}</div><div class="ex-msg" style="color:#7ae582">+${total}</div>`); await Promise.all([espera(1150), Promise.race([Audio.fala(voz, { atraso: 0.25 }), espera(2600)])]); }
     const avaliacao = this.cfg.rapido ? 'rapido' : !this.fono() ? 'livre' : this.gravou ? 'gravacao' : 'direta';
-    this.ok({ pontos: total, nota, treino: this.treinou, modo: this.cfg.rapido ? 'rapido' : this.cfg.avalia, avaliacao, tentativas: this.tentativas, sil: silabaAlvo(this.p) });
+    this.ok({ pontos: total, nota, treino: this.treinou, modo: this.cfg.rapido ? 'rapido' : this.cfg.avalia, avaliacao, tentativas: this.tentativas, sil: silabaAlvo(this.p), auto: this.auto() && this.palpite && this.palpite.nota != null && nota != null ? { nota: this.palpite.nota, confianca: this.palpite.confianca, classe: this.palpite.classe } : null });
   },
   tecla(k) { if ($('#tExercicio').hidden) return false; const m = { 1: 10, 2: 5, 3: 2 }[k]; const b = m && $('#exPasso').querySelector(`[data-n="${m}"]`); if (b) { b.click(); return true; } return false; },
 };

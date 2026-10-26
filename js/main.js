@@ -54,7 +54,7 @@ function aplicaCfg() {
   mundo.reduz = cfg.reduz; if (mundo.qualidade !== cfg.qualidade) mundo.defineQualidade(cfg.qualidade);
   mundo.opcoes({ intenso: cfg.intenso, zoom: cfg.zoom, retomada: cfg.retomada, cenario: cfg.semCenario ? 'nenhum' : cfg.cenGrande ? 'grande' : 'normal' });
   $('#bMusica').setAttribute('aria-pressed', String(cfg.musica)); $('#bEfeitos').setAttribute('aria-pressed', String(cfg.efeitos)); $('#fps').hidden = !cfg.fps;
-  $('#aAvaliaTxt').textContent = cfg.avalia === 'fono' ? 'Só o fonoaudiólogo deve dar as notas.' : 'A criança fala, se ouve e ganha 5 pontos por participar.';
+  $('#aAvaliaTxt').textContent = cfg.avalia === 'fono' ? 'Só o fonoaudiólogo deve dar as notas.' : cfg.avalia === 'auto' ? 'O detector mostra um palpite; o fonoaudiólogo confere e dá a nota.' : 'A criança fala, se ouve e ganha 5 pontos por participar.';
   salva();
 }
 
@@ -216,7 +216,10 @@ $('#tAjustes').addEventListener('input', async (e) => {
   if (t.id === 'aVolVoz') { cfg.volVoz = +t.value; }
   if (t.id === 'aVolMus') { cfg.volMusica = +t.value; cfg.musica = cfg.volMusica > 0; } if (t.id === 'aVolSfx') { cfg.volEfeitos = +t.value; cfg.efeitos = cfg.volEfeitos > 0; }
   if (t.id === 'aInclinar') { cfg.inclinar = t.checked && (await incl.liga()); t.checked = cfg.inclinar; }
-  if (t.id === 'aSens') cfg.sens = +t.value; if (t.id === 'aAvalia') cfg.avalia = t.value; if (t.id === 'aRapido') cfg.rapido = t.checked; 
+  if (t.id === 'aSens') cfg.sens = +t.value; if (t.id === 'aAvalia') { if (t.value === 'auto' && cfg.avalia !== 'auto') { const antes = cfg.avalia; t.value = antes;
+    confirma({ titulo: 'Análise automática em teste', texto: 'O detector ainda está em fase de teste e as medidas podem ser imprecisas. Ele mostra um palpite de nota na hora da avaliação, mas quem decide a nota é sempre o fonoaudiólogo. Funciona nas pistas 1, 2 e 3; encontros consonantais (pista 4) ainda não são analisados. Use em silêncio, com o aparelho a um palmo da boca.',
+      botoes: [['Cancelar', 'btn', () => foca('tAjustes')], ['Usar em teste', 'btn pri', () => { cfg.avalia = 'auto'; $('#aAvalia').value = 'auto'; aplicaCfg(); foca('tAjustes'); }]] }); }
+    else cfg.avalia = t.value; } if (t.id === 'aRapido') cfg.rapido = t.checked; 
   if (t.id === 'aIntenso') cfg.intenso = t.checked; if (t.id === 'aZoom') cfg.zoom = t.checked; if (t.id === 'aRetomada') cfg.retomada = t.checked; if (t.id === 'aGrande') cfg.cenGrande = t.checked; if (t.id === 'aSemCen') { cfg.semCenario = t.checked; $('#aGrande').disabled = t.checked; }
   if (t.id === 'aQual') cfg.qualidade = t.value; if (t.id === 'aReduz') cfg.reduz = t.checked; if (t.id === 'aFps') cfg.fps = t.checked;
   aplicaCfg(); if (t.id === 'aVolSfx') Audio.toca('coletar'); if (t.id === 'aVolVoz' && e.type === 'input') { clearTimeout(vozT); vozT = setTimeout(() => Audio.fala('fr_n10_a'), 250); }
