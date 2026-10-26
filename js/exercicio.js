@@ -42,13 +42,13 @@ export const Exercicio = {
   cfg: null, token: 0,
   // abre o pop-up e devolve { pontos, nota, treino, modo }
   abre(p, cfg, desenhaFolha) {
-    this.cfg = cfg; this.p = p; this.treinou = false; this.token++;
+    this.cfg = cfg; this.p = p; this.treinou = false; this.token++; this.tentativas = 0; this.gravou = false;
     const cv = $('#exFolha'); cv.getContext('2d').drawImage(desenhaFolha(p), 0, 0);
     $('#exPalavra').innerHTML = this.silabada(p) + `<button class="ouvir" id="exOuvirPal" aria-label="Ouvir a palavra">${ic('som')}</button>`; mostraBoca(p);
     $('#exOuvirPal').onclick = () => Audio.fala(vozPalavra(p, 'n'));
     Audio.fala(vozPalavra(p, 'n'), { atraso: 0.45 });
     $('#tExercicio').hidden = false; Audio.abafa(0);
-    return new Promise((ok) => { this.ok = (res) => { Audio.calaVoz(); $('#tExercicio').hidden = true; Audio.abafa(1, 0.5); ok(res); }; cfg.rapido ? this.telaRapida() : this.telaInicio(); });
+    return new Promise((ok) => { this.ok = (res) => { Audio.calaVoz(); $('#tExercicio').hidden = true; Audio.abafa(1, 0.5); ok(res); }; cfg.rapido ? this.telaRapida() : cfg.semMic ? this.telaSemMicAvatar() : this.telaInicio(); });
   },
   silabada(p) { const ps = p.sil.split('-'); return ps.map((s) => (s === s.toUpperCase() && /[A-ZÀ-Ú]/.test(s) && ps.length > 1 ? `<u>${s.toLowerCase()}</u>` : s.toLowerCase())).join('<small>·</small>'); },
   poe(html) { const e = $('#exPasso'); e.innerHTML = html; const b = e.querySelector('[data-foco]') || e.querySelector('button'); if (b) b.focus({ preventScroll: true }); return e; },
@@ -58,7 +58,15 @@ export const Exercicio = {
     if (this.fono()) { this.poe(`<p class="fraco">Exercício rápido: escolha a nota.</p>${this.htmlNotas()}`); this.ligaNotas(); }
     else { const e = this.poe('<div class="ex-botoes"><button class="btn grande pri" data-foco>Falei!</button></div>'); e.querySelector('button').onclick = () => this.fecha(PONTOS_LIVRE, null); }
   },
+  // avatar marcado com "exercício sem microfone": treino e nota pela observação, sem gravar
+  telaSemMicAvatar(aviso = '') {
+    const e = this.poe(`${aviso ? `<div class="ex-aviso">${aviso}</div>` : ''}<div class="ex-botoes"><button class="btn grande azul" id="exTreino">${ic('ouvido')} Treino${this.treinou ? ' (feito)' : ''}</button></div>
+      ${this.fono() ? `<p class="fraco" style="margin:0">Exercício sem microfone: dê a nota pela observação (teclas 1, 2 e 3).</p>${this.htmlNotas()}` : '<button class="btn grande pri" id="exFim" data-foco>Pronto!</button>'}`);
+    e.querySelector('#exTreino').onclick = () => this.treino(0); this.voltaTreino = () => this.telaSemMicAvatar('Treino completo! Mais 5 pontos.');
+    if (this.fono()) this.ligaNotas(); else e.querySelector('#exFim').onclick = () => this.fecha(PONTOS_LIVRE, null);
+  },
   telaInicio(aviso = '') {
+    this.voltaTreino = null;
     const semMic = Mic.estado !== 'ok';
     const e = this.poe(`${aviso ? `<div class="ex-aviso">${aviso}</div>` : ''}
       <div class="ex-botoes">
@@ -80,6 +88,7 @@ export const Exercicio = {
   },
 
   async grava() {
+    this.tentativas++; this.gravou = true;
     const tk = ++this.token, e = this.poe('<div class="ex-msg" id="exLeg">Prepare-se…</div><canvas class="ex-onda" id="exOnda" width="640" height="96"></canvas><div class="ex-tempo"><i id="exBarra"></i></div><button class="btn" id="exPara" hidden>Parar</button>');
     const cv = e.querySelector('#exOnda'), cx = cv.getContext('2d'), barra = e.querySelector('#exBarra'), niveis = [];
     let fase = 'prep', t0 = performance.now(), rec = null, partes = [], fim = false, falou = false, pico = 0;
@@ -124,7 +133,7 @@ export const Exercicio = {
 
   treino(i) {
     const p = this.p, sil = silabaAlvo(p), passos = [['Sílaba', sil, vozSilaba(sil, 1)], ['Três vezes', `${sil}, ${sil}, ${sil}`, vozSilaba(sil, 3)], ['Devagar', null, vozPalavra(p, 's')], ['Palavra', p.w, vozPalavra(p, 'n')]];
-    if (i >= passos.length) { this.treinou = true; Audio.toca('nota5'); Audio.fala(Math.random() < 0.5 ? 'fr_treino_a' : 'fr_treino_b'); return this.telaInicio('Treino completo! Mais 5 pontos. Agora é só pronunciar.'); }
+    if (i >= passos.length) { this.treinou = true; Audio.toca('nota5'); Audio.fala(Math.random() < 0.5 ? 'fr_treino_a' : 'fr_treino_b'); return this.voltaTreino ? this.voltaTreino() : this.telaInicio('Treino completo! Mais 5 pontos. Agora é só pronunciar.'); }
     const [rot, txt, voz] = passos[i];
     const e = this.poe(`<div class="ex-passos">${passos.map((_, k) => `<i class="${k < i ? 'f' : k === i ? 'a' : ''}"></i>`).join('')}</div>
       <p class="fraco" style="margin:0">${rot}</p><div class="ex-palavra">${txt === null ? this.silabada(p) : txt}</div>
@@ -133,14 +142,15 @@ export const Exercicio = {
     const toca = async () => { const v = e.querySelector('#exVez'); v.className = 'ex-vez'; v.innerHTML = `${ic('som')} Escute`; const ok = await Audio.fala([voz]); if (!ok || !v.isConnected) return; v.className = 'ex-vez sua'; v.innerHTML = `${ic('mic')} Sua vez!`; Audio.fala('fr_sua_vez'); };
     toca(); e.querySelector('#exDeNovo').onclick = toca;
     e.querySelector('#exProx').onclick = () => { Audio.toca('ui_ok'); this.treino(i + 1); };
-    e.querySelector('#exSai').onclick = () => { Audio.calaVoz(); this.telaInicio(); };
+    e.querySelector('#exSai').onclick = () => { Audio.calaVoz(); this.voltaTreino ? this.telaSemMicAvatar() : this.telaInicio(); };
   },
 
   async fecha(pontos, nota) {
     this.token++; const total = pontos + (this.treinou ? PONTOS_TREINO : 0), chave = nota || (pontos ? 'livre' : null);
     if (chave) { Audio.toca(nota === 10 ? 'nota10' : nota === 2 ? 'nota2' : 'nota5'); const op = MSG[chave].map((m, k) => [m, VOZ_MSG[chave][k]]).filter(([m]) => this.p.som !== 'l' || !m.includes('R')), [m, voz] = sorteio(op);
       this.poe(`<div class="ex-msg">${m}</div><div class="ex-msg" style="color:#7ae582">+${total}</div>`); await Promise.all([espera(1150), Promise.race([Audio.fala(voz, { atraso: 0.25 }), espera(2600)])]); }
-    this.ok({ pontos: total, nota, treino: this.treinou, modo: this.cfg.rapido ? 'rapido' : this.cfg.avalia });
+    const avaliacao = this.cfg.rapido ? 'rapido' : !this.fono() ? 'livre' : this.gravou ? 'gravacao' : 'direta';
+    this.ok({ pontos: total, nota, treino: this.treinou, modo: this.cfg.rapido ? 'rapido' : this.cfg.avalia, avaliacao, tentativas: this.tentativas, sil: silabaAlvo(this.p) });
   },
   tecla(k) { if ($('#tExercicio').hidden) return false; const m = { 1: 10, 2: 5, 3: 2 }[k]; const b = m && $('#exPasso').querySelector(`[data-n="${m}"]`); if (b) { b.click(); return true; } return false; },
 };

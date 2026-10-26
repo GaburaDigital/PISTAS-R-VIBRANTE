@@ -3,6 +3,8 @@ import { Mundo, raioDe } from './mundo.js';
 import { Audio } from './audio.js';
 import { PISTAS, NIVEIS, geraFase, vozPalavra } from './dados.js';
 import { Exercicio, Mic } from './exercicio.js';
+import { Perfis, CORES, tiririSVG, baixa, compartilha, podeCompartilhar } from './perfis.js';
+import { PERIODOS, periodo, graficos, desenha, ligaDica, resumoSessao, pdfPartida, pdfPeriodo, PISTA_NOME, PISTA_CURTA, NIVEL_NOME, MODO_NOME, AVALIACAO_NOME, COR_NOTA, dataHora, duracao, rotuloPeriodo } from './relatorio.js';
 
 const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
 const IC = {
@@ -41,10 +43,10 @@ const ehToque = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in win
 // ---------- mundo ----------
 const mundo = new Mundo($('#cena'), {
   onHud: pintaHud, onIcone: icone, onContagem: contagem, onAviso: aviso,
-  onExercicio: async (p) => { const res = await Exercicio.abre(p, { ...cfg, rapido: cfg.rapido || rapidoUrl }, (q) => mundo.canvasFolha(q)); mundo.fimExercicio(res); },
+  onExercicio: async (p) => { const av = Perfis.ativo(); const res = await Exercicio.abre(p, { ...cfg, rapido: cfg.rapido || rapidoUrl, semMic: !!(av && av.semMic) }, (q) => mundo.canvasFolha(q)); mundo.fimExercicio(res); },
   onFim: fim,
 });
-window.__jogo = { mundo, cfg, Audio, Mic, iniciar: (p, n, seed) => comeca(p, n, seed), incl: () => incl };
+window.__jogo = { mundo, cfg, Audio, Mic, Perfis, sessao: () => ultimaSessao, iniciar: (p, n, seed) => comeca(p, n, seed), incl: () => incl };
 let pistaSel = PISTAS.find((p) => p.id === cfg.pista) || PISTAS[0], nivelSel = NIVEIS[cfg.nivel] || NIVEIS.facil;
 
 function aplicaCfg() {
@@ -59,12 +61,12 @@ function aplicaCfg() {
 // ---------- telas ----------
 const pilha = [];
 const VOZ_TELA = { tPista: 'fr_escolha_pista', tNivel: 'fr_escolha_nivel', tPreparar: 'fr_preparar' };
-function mostra(id) { $$('.tela').forEach((t) => { if (!['tAjustes', 'tAjuda', 'tPausa', 'tExercicio'].includes(t.id) || t.id === id) t.hidden = t.id !== id; }); foca(id); if (VOZ_TELA[id]) Audio.fala(VOZ_TELA[id]); }
+function mostra(id) { $$('.tela').forEach((t) => { if (!['tAjustes', 'tAjuda', 'tPausa', 'tExercicio', 'tConfirma'].includes(t.id) || t.id === id) t.hidden = t.id !== id; }); if (id === 'tTitulo') pintaTitulo(); foca(id); if (VOZ_TELA[id]) Audio.fala(VOZ_TELA[id]); }
 let focoAuto = false;
 function foca(id) { const t = $('#' + id); if (!t) return; const b = t.querySelector('[data-foco]') || t.querySelector('.pri') || t.querySelector('button'); if (b) { focoAuto = true; b.focus({ preventScroll: true }); focoAuto = false; } }
 function abre(id) { pilha.push(document.activeElement); $('#' + id).hidden = false; foca(id); if (id === 'tAjustes') preencheAjustes(); if (id === 'tAjuda') Audio.fala(['fr_ajuda1', 'fr_ajuda2', 'fr_ajuda3']); }
 function fecha(id) { if (id === 'tAjuda') Audio.calaVoz(); $('#' + id).hidden = true; const a = pilha.pop(); if (a && a.focus) a.focus({ preventScroll: true }); }
-const telaDeCima = () => ['tAjustes', 'tAjuda', 'tExercicio', 'tPausa', 'tFim', 'tPreparar', 'tNivel', 'tPista', 'tTitulo'].map((i) => $('#' + i)).find((t) => !t.hidden);
+const telaDeCima = () => ['tConfirma', 'tAjustes', 'tAjuda', 'tExercicio', 'tPausa', 'tRelatorio', 'tFim', 'tHistorico', 'tAvatarEdit', 'tAvatares', 'tPreparar', 'tNivel', 'tPista', 'tTitulo'].map((i) => $('#' + i)).find((t) => !t.hidden);
 
 document.addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
@@ -108,16 +110,18 @@ $('#prepJogar').onclick = () => comeca();
 
 function vaiMenu(tela = true) { ['tPausa', 'tExercicio', 'tFim'].forEach((i) => ($('#' + i).hidden = true)); pilha.length = 0; Audio.abafa(1); mundo.menu(geraFase(PISTAS[0], NIVEIS.facil, 7), PISTAS[0], NIVEIS.facil); $('#hud').hidden = true; $('#bPausa').hidden = true; Audio.musica('menu'); aviso(null); if (tela) mostra('tTitulo'); }
 function comeca(p = pistaSel, n = nivelSel, seed) {
+  inicioPartida = Date.now();
   pistaSel = p; nivelSel = n; $$('.tela').forEach((t) => (t.hidden = true)); $('#hud').hidden = false; $('#bPausa').hidden = false; $('#hudTextos').innerHTML = ''; aviso(null);
   mundo.comeca(geraFase(p, n, seed), p, n); Audio.musica('pista'); ult = {}; pintaHud(mundo); if (document.activeElement) document.activeElement.blur();
 }
 function pausar(v) { if (v && !['correndo', 'contagem'].includes(mundo.estado)) return; mundo.pausa(v); if (v) { abre('tPausa'); Audio.abafa(0.35); } else { $('#tPausa').hidden = true; pilha.length = 0; Audio.abafa(1); } }
 $('#bPausa').onclick = () => pausar(true); $('#pContinuar').onclick = () => pausar(false);
 $('#pReiniciar').onclick = () => { Audio.abafa(1); comeca(); }; $('#pMenu').onclick = () => { Audio.abafa(1); vaiMenu(); };
-$('#fDeNovo').onclick = () => comeca(); $('#fMenu').onclick = () => vaiMenu();
+$('#fDeNovo').onclick = () => comeca(); $('#fMenu').onclick = () => vaiMenu(); $('#fRelatorio').onclick = () => abreRelatorio(ultimaSessao, Perfis.ativo(), 'tFim');
 document.addEventListener('visibilitychange', () => { if (document.hidden) pausar(true); });
 
 function fim(r) {
+  registraPartida(r);
   $('#hud').hidden = true; $('#bPausa').hidden = true;
   $('#fimTit').textContent = r.vitoria ? 'Você chegou!' : 'A bola acabou';
   $('#fimSub').textContent = r.vitoria ? 'Olha o tamanho da sua bola de papel!' : 'Não foi dessa vez. Vamos tentar de novo?';
@@ -205,18 +209,162 @@ pintaTela();
 $('#bPausa').innerHTML = ic('pausa'); $('#bMusica').innerHTML = ic('nota', IC.corte); $('#bEfeitos').innerHTML = ic('som', IC.corte); $('#bAjuda').innerHTML = ic('ajuda');
 $('#bMusica').onclick = () => { cfg.musica = !cfg.musica; aplicaCfg(); }; $('#bEfeitos').onclick = () => { cfg.efeitos = !cfg.efeitos; aplicaCfg(); };
 $('#bAjuda').onclick = () => { if ($('#tAjuda').hidden) { if (['correndo', 'contagem'].includes(mundo.estado)) pausar(true); abre('tAjuda'); } };
-function preencheAjustes() { $('#aVolVoz').value = cfg.volVoz; $('#aVolMus').value = cfg.volMusica; $('#aVolSfx').value = cfg.volEfeitos; $('#aInclinar').checked = cfg.inclinar; $('#aSens').value = cfg.sens; $('#aAvalia').value = cfg.avalia; $('#aRapido').checked = cfg.rapido; $('#aNome').value = cfg.nome; $('#aQual').value = cfg.qualidade; $('#aReduz').checked = cfg.reduz; $('#aFps').checked = cfg.fps; $('#aIntenso').checked = cfg.intenso; $('#aZoom').checked = cfg.zoom; $('#aRetomada').checked = cfg.retomada; $('#aGrande').checked = cfg.cenGrande; $('#aSemCen').checked = cfg.semCenario; $('#aGrande').disabled = cfg.semCenario; }
+function preencheAjustes() { pintaAjAvatar(); $('#aVolVoz').value = cfg.volVoz; $('#aVolMus').value = cfg.volMusica; $('#aVolSfx').value = cfg.volEfeitos; $('#aInclinar').checked = cfg.inclinar; $('#aSens').value = cfg.sens; $('#aAvalia').value = cfg.avalia; $('#aRapido').checked = cfg.rapido; $('#aQual').value = cfg.qualidade; $('#aReduz').checked = cfg.reduz; $('#aFps').checked = cfg.fps; $('#aIntenso').checked = cfg.intenso; $('#aZoom').checked = cfg.zoom; $('#aRetomada').checked = cfg.retomada; $('#aGrande').checked = cfg.cenGrande; $('#aSemCen').checked = cfg.semCenario; $('#aGrande').disabled = cfg.semCenario; }
 let vozT;
 $('#tAjustes').addEventListener('input', async (e) => {
   const t = e.target;
   if (t.id === 'aVolVoz') { cfg.volVoz = +t.value; }
   if (t.id === 'aVolMus') { cfg.volMusica = +t.value; cfg.musica = cfg.volMusica > 0; } if (t.id === 'aVolSfx') { cfg.volEfeitos = +t.value; cfg.efeitos = cfg.volEfeitos > 0; }
   if (t.id === 'aInclinar') { cfg.inclinar = t.checked && (await incl.liga()); t.checked = cfg.inclinar; }
-  if (t.id === 'aSens') cfg.sens = +t.value; if (t.id === 'aAvalia') cfg.avalia = t.value; if (t.id === 'aRapido') cfg.rapido = t.checked; if (t.id === 'aNome') cfg.nome = t.value.trim();
+  if (t.id === 'aSens') cfg.sens = +t.value; if (t.id === 'aAvalia') cfg.avalia = t.value; if (t.id === 'aRapido') cfg.rapido = t.checked; 
   if (t.id === 'aIntenso') cfg.intenso = t.checked; if (t.id === 'aZoom') cfg.zoom = t.checked; if (t.id === 'aRetomada') cfg.retomada = t.checked; if (t.id === 'aGrande') cfg.cenGrande = t.checked; if (t.id === 'aSemCen') { cfg.semCenario = t.checked; $('#aGrande').disabled = t.checked; }
   if (t.id === 'aQual') cfg.qualidade = t.value; if (t.id === 'aReduz') cfg.reduz = t.checked; if (t.id === 'aFps') cfg.fps = t.checked;
   aplicaCfg(); if (t.id === 'aVolSfx') Audio.toca('coletar'); if (t.id === 'aVolVoz' && e.type === 'input') { clearTimeout(vozT); vozT = setTimeout(() => Audio.fala('fr_n10_a'), 250); }
 });
+
+// ---------- avatares ----------
+let inicioPartida = Date.now(), ultimaSessao = null;
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const ehIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const instalado = () => matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;
+
+function pintaTitulo() {
+  const av = Perfis.ativo(), b = $('#bAvatar');
+  b.innerHTML = av ? `${tiririSVG(av.cor, 34)}<span>${esc(av.apelido)} · trocar</span>` : 'Entrar no avatar';
+  b.setAttribute('aria-label', av ? `Avatar ${av.apelido}. Trocar de avatar` : 'Entrar no avatar');
+}
+$('#bAvatar').onclick = () => { pintaAvatares(); mostra('tAvatares'); };
+function entraAvatar(av) {
+  Perfis.entra(av.id); if (av.prefs) Object.assign(cfg, av.prefs);
+  pistaSel = PISTAS.find((p) => p.id === cfg.pista) || pistaSel; nivelSel = NIVEIS[cfg.nivel] || nivelSel; cartoes(); aplicaCfg();
+}
+function pintaAvatares() {
+  const l = Perfis.lista(), ativo = Perfis.ativo();
+  $('#avInstala').hidden = !(ehIOS && !instalado() && l.length);
+  $('#avInstala').innerHTML = '<b>Dica para iPhone e iPad:</b> toque em Compartilhar e depois em "Adicionar à Tela de Início". Assim o aparelho não apaga os avatares quando o jogo fica dias sem ser aberto.';
+  $('#listaAvatares').innerHTML = (ativo ? `<div class="av-cartao" style="grid-column:1/-1;flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>Jogando como <b>${esc(ativo.apelido)}</b></span><button class="btn" data-av-sair>Sair do avatar</button></div>` : '') +
+    (l.length ? l.map((a) => {
+      const sub = [a.idade ? a.idade + ' anos' : '', a.ultimoJogo ? 'Último jogo: ' + new Date(a.ultimoJogo).toLocaleDateString('pt-BR') : 'Ainda não jogou', a.sessoes.length + (a.sessoes.length === 1 ? ' partida' : ' partidas')].filter(Boolean).join(' · ');
+      return `<div class="av-cartao ${ativo && ativo.id === a.id ? 'ativo' : ''}"><div class="av-cab">${tiririSVG(a.cor, 72)}<div><b>${esc(a.apelido)}</b><small>${esc(sub)}</small></div></div>
+        ${Perfis.precisaBackup(a) ? '<div class="av-backup">Faz mais de 7 dias sem baixar o registro. Vale guardar uma cópia.</div>' : ''}
+        <div class="av-acoes"><button class="btn pri" data-av-jogar="${a.id}">Jogar</button><button class="btn" data-av-hist="${a.id}">Histórico</button><button class="btn" data-av-edit="${a.id}">Editar</button><button class="btn perigo" data-av-del="${a.id}" style="grid-column:1/-1">Excluir</button></div></div>`;
+    }).join('') : '<div class="av-vazio">Nenhum avatar ainda. Crie um para guardar o histórico e os relatórios de cada criança.</div>');
+}
+$('#listaAvatares').onclick = (e) => {
+  const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
+  if ('avSair' in d) { Perfis.sai(); pintaAvatares(); foca('tAvatares'); return; }
+  const av = Perfis.get(d.avJogar || d.avHist || d.avEdit || d.avDel); if (!av) return;
+  if (d.avJogar) { entraAvatar(av); mostra('tPista'); }
+  else if (d.avHist) abreHistorico(av);
+  else if (d.avEdit) abreEdicao(av);
+  else if (d.avDel) confirma({ titulo: `Excluir ${av.apelido}?`, texto: `O histórico de ${av.sessoes.length} ${av.sessoes.length === 1 ? 'partida' : 'partidas'} será apagado deste aparelho. Isso não pode ser desfeito.`,
+    botoes: [['Baixar registro antes', 'btn', () => { const f = Perfis.arquivo(av.id); baixa(f.blob, f.nome); Perfis.marcaBackup(av.id); return false; }], ['Excluir', 'btn perigo-forte', () => { Perfis.exclui(av.id); pintaAvatares(); pintaTitulo(); }], ['Cancelar', 'btn pri', () => {}]] });
+};
+$('#avNovo').onclick = () => abreEdicao(null);
+$('#avImportar').onclick = () => $('#avArquivo').click();
+$('#avArquivo').onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { const r = Perfis.importa(await f.text()); pintaAvatares(); confirma({ titulo: r.novo ? 'Avatar importado' : 'Registro atualizado', texto: r.novo ? `${r.apelido} foi adicionado com ${r.adicionadas} ${r.adicionadas === 1 ? 'partida' : 'partidas'}.` : `${r.adicionadas ? r.adicionadas + (r.adicionadas === 1 ? ' partida nova foi juntada' : ' partidas novas foram juntadas') : 'Nenhuma partida nova'} ao histórico de ${r.apelido}.`, botoes: [['Pronto', 'btn pri', () => {}]] }); }
+  catch (err) { confirma({ titulo: 'Não foi possível importar', texto: err.message, botoes: [['Voltar', 'btn pri', () => {}]] }); }
+};
+
+// edição
+let editando = null, corEd = 'original';
+function abreEdicao(av) {
+  editando = av; corEd = av ? av.cor : 'original';
+  $('#edTitulo').textContent = av ? 'Editar avatar' : 'Novo avatar';
+  $('#edApelido').value = av ? av.apelido : ''; $('#edIdade').value = av ? av.idade : ''; $('#edInicio').value = av ? av.inicio : ''; $('#edSemMic').checked = !!(av && av.semMic);
+  $('#edAcoes').hidden = !av; $('#edCompartilhar').hidden = !podeCompartilhar();
+  pintaCores(); mostra('tAvatarEdit'); $('#edApelido').focus();
+}
+function pintaCores() {
+  $('#edImagem').innerHTML = tiririSVG(corEd, 96);
+  $('#edCores').innerHTML = CORES.map((c) => `<button type="button" role="radio" aria-checked="${c.id === corEd}" aria-label="${c.nome}" data-cor="${c.id}" style="background:${c.casco}"></button>`).join('');
+}
+$('#edCores').onclick = (e) => { const b = e.target.closest('[data-cor]'); if (b) { corEd = b.dataset.cor; pintaCores(); $(`[data-cor="${corEd}"]`).focus(); } };
+$('#edVoltar').onclick = () => { pintaAvatares(); mostra('tAvatares'); };
+$('#edForm').onsubmit = (e) => {
+  e.preventDefault(); const apelido = $('#edApelido').value.trim(); if (!apelido) { $('#edApelido').focus(); return; }
+  const d = { apelido, idade: $('#edIdade').value, inicio: $('#edInicio').value, cor: corEd, semMic: $('#edSemMic').checked };
+  if (editando) Perfis.atualiza(editando.id, d);
+  else { const av = Perfis.cria({ ...d, prefs: null }); Perfis.salvaPrefs(av.id, cfg); entraAvatar(Perfis.get(av.id)); pintaAvatares(); mostra('tAvatares'); confirma({ titulo: `Olá, ${apelido}!`, texto: 'O avatar foi criado e já está ativo. As preferências atuais foram salvas nele; para mudar, use Ajustes e depois "Salvar preferências no avatar".', botoes: [['Jogar agora', 'btn pri', () => mostra('tPista')], ['Ajustes', 'btn', () => abre('tAjustes')]] }); return; }
+  pintaAvatares(); pintaTitulo(); mostra('tAvatares');
+};
+const exportaAvatar = async (modo) => { const f = Perfis.arquivo(editando.id); const r = modo === 'compartilhar' ? await compartilha(f.blob, f.nome, `Registro do Tiriri: ${editando.apelido}`) : (baixa(f.blob, f.nome), 'baixado'); if (r !== 'cancelado') Perfis.marcaBackup(editando.id); };
+$('#edBaixar').onclick = () => exportaAvatar('baixar'); $('#edCompartilhar').onclick = () => exportaAvatar('compartilhar');
+
+// preferências no avatar (tela de ajustes)
+function pintaAjAvatar() {
+  const av = Perfis.ativo(), el = $('#ajAvatar'); el.hidden = !av; if (!av) return;
+  el.innerHTML = `${tiririSVG(av.cor, 44)}<span>${esc(av.apelido)}<small>Volumes, cenários, efeitos e câmera podem ficar salvos neste avatar.</small></span><button class="btn" id="ajSalvaAv">Salvar preferências no avatar</button>`;
+  $('#ajSalvaAv').onclick = () => { Perfis.salvaPrefs(av.id, cfg); $('#ajSalvaAv').textContent = 'Preferências salvas'; $('#ajSalvaAv').disabled = true; };
+}
+
+// confirmação (pop-up)
+function confirma({ titulo, texto, botoes }) {
+  $('#coTitulo').textContent = titulo; $('#coTexto').textContent = texto;
+  $('#coBotoes').innerHTML = botoes.map(([r, c], i) => `<button class="${c}" data-i="${i}" ${c.includes('pri') ? 'data-foco' : ''}>${esc(r)}</button>`).join('');
+  $('#coBotoes').onclick = (e) => { const b = e.target.closest('[data-i]'); if (!b) return; const r = botoes[+b.dataset.i][2](); if (r !== false) { $('#tConfirma').hidden = true; } };
+  $('#tConfirma').hidden = false; foca('tConfirma');
+}
+
+// ---------- registro da partida ----------
+function registraPartida(r) {
+  const av = Perfis.ativo();
+  ultimaSessao = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), data: new Date(inicioPartida).toISOString(), duracao: Math.round((Date.now() - inicioPartida) / 1000),
+    pista: pistaSel.id, nivel: nivelSel.id, modo: cfg.rapido || rapidoUrl ? 'rapido' : cfg.avalia, vitoria: r.vitoria, bola: r.pontos, obs: '',
+    palavras: r.palavras.map((p) => ({ w: p.w, som: p.som || 'r', sil: p.sil || '', nota: p.nota ?? null, avaliacao: p.avaliacao || 'direta', treino: !!p.treino, tentativas: p.tentativas || 0, pontos: p.pontos, auto: p.auto || null })) };
+  if (av) Perfis.registraSessao(av.id, ultimaSessao);
+}
+
+// ---------- relatório da partida ----------
+let relSessao = null, relAvatar = null, relVolta = 'tFim';
+function abreRelatorio(s, av, volta) {
+  if (!s) return; relSessao = s; relAvatar = av; relVolta = volta; const q = resumoSessao(s);
+  $('#reApelido').value = av ? av.apelido : (s.apelido || ''); $('#reObs').value = s.obs || '';
+  $('#reResumo').innerHTML = `<p class="fraco" style="text-align:left;margin:0 0 .5rem">${dataHora(s.data)} · Pista ${s.pista} (${PISTA_CURTA[s.pista]}) · ${NIVEL_NOME[s.nivel]} · ${duracao(s.duracao)} · ${MODO_NOME[s.modo] || s.modo}</p>
+    <div class="ladrilhos"><div class="ladrilho"><b>${q.palavras}</b><span>Palavras</span></div><div class="ladrilho"><b>${q.media == null ? '–' : q.media.toFixed(1).replace('.', ',')}</b><span>Nota média</span></div><div class="ladrilho"><b>${q.treinos}</b><span>Treinos</span></div></div>
+    <div class="re-palavras">${s.palavras.map((p) => `<span>${esc(p.w)}${p.nota != null ? `<i class="nota" style="background:${COR_NOTA[p.nota]}">${p.nota}</i>` : ''}</span>`).join('') || '<i class="fraco">Nenhuma palavra nova nesta partida.</i>'}</div>`;
+  $('#reCompartilhar').hidden = !podeCompartilhar();
+  mostra('tRelatorio');
+}
+function guardaObs() { relSessao.obs = $('#reObs').value; relSessao.apelido = $('#reApelido').value.trim(); if (relAvatar) Perfis.atualizaSessao(relAvatar.id, relSessao.id, { obs: relSessao.obs }); }
+async function geraPartida(modo) {
+  guardaObs(); const b = modo === 'compartilhar' ? $('#reCompartilhar') : $('#reBaixar'), t = b.textContent; b.textContent = 'Gerando…'; b.disabled = true;
+  try { const f = await pdfPartida(relSessao, { apelido: relSessao.apelido, obs: relSessao.obs, avatar: relAvatar }); if (modo === 'compartilhar') await compartilha(f.blob, f.nome, 'Relatório da partida'); else baixa(f.blob, f.nome); }
+  catch (e) { console.error(e); confirma({ titulo: 'Não foi possível gerar o PDF', texto: 'Confira a conexão com a internet na primeira vez e tente de novo.', botoes: [['Voltar', 'btn pri', () => {}]] }); }
+  b.textContent = t; b.disabled = false;
+}
+$('#reBaixar').onclick = () => geraPartida('baixar'); $('#reCompartilhar').onclick = () => geraPartida('compartilhar');
+$('#reVoltar').onclick = () => { guardaObs(); if (relVolta === 'tHistorico') abreHistorico(relAvatar, hiPeriodo); else mostra(relVolta); };
+
+// ---------- histórico ----------
+let hiAvatar = null, hiPeriodo = 'mes';
+function abreHistorico(av, per = hiPeriodo) { hiAvatar = Perfis.get(av.id); hiPeriodo = per; mostra('tHistorico'); pintaHistorico(); }
+$('#hiAbas').onclick = (e) => { const b = e.target.closest('[data-p]'); if (b) { hiPeriodo = b.dataset.p; pintaHistorico(); b.focus(); } };
+$('#hiVoltar').onclick = () => { pintaAvatares(); mostra('tAvatares'); };
+function pintaHistorico() {
+  const av = hiAvatar, r = periodo(av, hiPeriodo), t = r.total, f1 = (v) => (v == null ? '–' : v.toFixed(1).replace('.', ','));
+  $('#hiTopo').innerHTML = `${tiririSVG(av.cor, 64)}<div><h2>Histórico de ${esc(av.apelido)}</h2><small>${esc(rotuloPeriodo(r))}${av.inicio ? ' · início do tratamento: ' + new Date(av.inicio + 'T12:00').toLocaleDateString('pt-BR') : ''}</small></div>`;
+  $$('#hiAbas .aba').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.p === hiPeriodo)));
+  if (!t.partidas) { $('#hiCorpo').innerHTML = '<div class="vazio-hist">Ainda não há partidas neste período. Jogue com este avatar para ver a evolução aqui.</div>'; $('#hiBaixar').disabled = $('#hiCompartilhar').disabled = true; $('#hiCompartilhar').hidden = true; return; }
+  $('#hiBaixar').disabled = $('#hiCompartilhar').disabled = false; $('#hiCompartilhar').hidden = !podeCompartilhar();
+  const gs = graficos(r);
+  $('#hiCorpo').innerHTML = `<div class="ladrilhos"><div class="ladrilho"><b>${t.partidas}</b><span>Partidas</span></div><div class="ladrilho"><b>${t.minutos}</b><span>Minutos de jogo</span></div><div class="ladrilho"><b>${t.palavras}</b><span>Palavras praticadas</span></div><div class="ladrilho"><b>${f1(t.media)}</b><span>Nota média</span></div><div class="ladrilho"><b>${t.pct10 == null ? '–' : Math.round(t.pct10) + '%'}</b><span>Notas 10</span></div></div>
+    <div class="graficos">${gs.map((g, i) => `<div class="grafico"><h4>${g.titulo}</h4><p>${g.sub}</p>${g.tipo === 'pilha' ? `<div class="legenda">${g.nomes.map((n, k) => `<span><i style="background:${g.cores[k]}"></i>nota ${n}</span>`).join('')}</div>` : ''}<canvas data-g="${i}" role="img" aria-label="${esc(g.titulo)}"></canvas><div class="dica" hidden></div></div>`).join('')}</div>
+    <h3>Palavras para trabalhar</h3>${r.dificeis.length ? `<div class="tabela-rolagem"><table class="hist-tab"><tr><th>Palavra</th><th>Sílaba alvo</th><th>Vezes avaliada</th><th>Nota média</th></tr>${r.dificeis.map((x) => `<tr><td><b>${esc(x.w)}</b></td><td>${esc(x.sil || '–')}</td><td>${x.n}</td><td>${f1(x.media)}</td></tr>`).join('')}</table></div>` : `<p class="fraco" style="text-align:left">${t.avaliadas ? 'Todas as palavras avaliadas tiveram nota 10.' : 'Sem notas do fonoaudiólogo neste período.'}</p>`}
+    <h3>Partidas</h3><div class="tabela-rolagem"><table class="hist-tab"><tr><th>Data</th><th>Pista</th><th class="so-largo">Nível</th><th>Palavras</th><th>Nota média</th><th></th></tr>${r.sessoes.map((s) => { const q = resumoSessao(s); return `<tr><td>${new Date(s.data).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td><td>${s.pista} · ${PISTA_CURTA[s.pista]}</td><td class="so-largo">${NIVEL_NOME[s.nivel]}</td><td>${q.palavras}</td><td>${f1(q.media)}</td><td><button class="btn" data-sessao="${s.id}">Relatório</button></td></tr>`; }).join('')}</table></div>`;
+  requestAnimationFrame(() => $$('#hiCorpo canvas[data-g]').forEach((cv) => { const w = cv.parentElement.clientWidth - 22; desenha(cv, gs[+cv.dataset.g], w, Math.max(170, Math.min(230, w * 0.55)), Math.min(3, window.devicePixelRatio || 1) * 1.5); ligaDica(cv, cv.nextElementSibling); }));
+}
+$('#hiCorpo').onclick = (e) => { const b = e.target.closest('[data-sessao]'); if (b) abreRelatorio(hiAvatar.sessoes.find((s) => s.id === b.dataset.sessao), hiAvatar, 'tHistorico'); };
+async function geraPeriodo(modo) {
+  const b = modo === 'compartilhar' ? $('#hiCompartilhar') : $('#hiBaixar'), t = b.textContent; b.textContent = 'Gerando…'; b.disabled = true;
+  try { const f = await pdfPeriodo(hiAvatar, hiPeriodo); if (modo === 'compartilhar') await compartilha(f.blob, f.nome, `Relatório de ${hiAvatar.apelido}`); else baixa(f.blob, f.nome); }
+  catch (e) { console.error(e); confirma({ titulo: 'Não foi possível gerar o PDF', texto: 'Tente de novo em instantes.', botoes: [['Voltar', 'btn pri', () => {}]] }); }
+  b.textContent = t; b.disabled = false;
+}
+$('#hiBaixar').onclick = () => geraPeriodo('baixar'); $('#hiCompartilhar').onclick = () => geraPeriodo('compartilhar');
+window.addEventListener('resize', () => { if (!$('#tHistorico').hidden) pintaHistorico(); });
 
 // ---------- rolagem dos painéis: barra visível e aviso de que há mais conteúdo ----------
 function marcaRolagem() { $$('.painel').forEach((p) => { const sobra = p.scrollHeight - p.clientHeight; p.classList.toggle('rola', sobra > 4); p.classList.toggle('mais', sobra > 4 && p.scrollTop < sobra - 4); }); }
@@ -231,7 +379,7 @@ let tAnt = performance.now(), nF = 0;
 function laco(agora) { requestAnimationFrame(laco); const dt = Math.min(0.05, (agora - tAnt) / 1000); tAnt = agora; mundo.quadro(dt); if (cfg.fps && ++nF % 30 === 0) $('#fps').textContent = `${Math.round(mundo.fps || 0)} qps · resolução ${mundo.dpr}x`; }
 
 (async () => {
-  redimensiona(); cartoes();
+  redimensiona(); { const av = Perfis.ativo(); if (av && av.prefs) Object.assign(cfg, av.prefs); pistaSel = PISTAS.find((p) => p.id === cfg.pista) || pistaSel; nivelSel = NIVEIS[cfg.nivel] || nivelSel; } cartoes();
   const inicio = performance.now(); let pronto = false;
   const carga = (async () => { let a = 0, b = 0; const pinta = () => ($('#progCarga').style.width = Math.round((a * 0.6 + b * 0.4) * 100) + '%'); await Promise.all([mundo.carrega((v) => { a = v; pinta(); }), Audio.carrega((v) => { b = v; pinta(); })]); pronto = true; })();
   carga.catch((e) => { console.error(e); $('#txtCarga').textContent = 'Não foi possível carregar o jogo. Recarregue a página.'; });

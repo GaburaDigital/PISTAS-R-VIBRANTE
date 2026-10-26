@@ -44,10 +44,51 @@
     <p class="demo">Pistas do R vibrante · demonstração</p>
     <div class="coluna">
       <button class="btn grande pri" data-ir="tPista">Jogar</button>
+      <button class="btn avatar-btn" id="bAvatar"></button>
       <button class="btn" data-abre="tAjustes">Ajustes</button>
       <button class="btn" data-abre="tAjuda">Como jogar</button>
     </div>
   </div>
+</section>
+
+<!-- avatares -->
+<section class="tela" id="tAvatares" hidden>
+  <div class="painel largo"><h2>Avatares</h2>
+    <div class="aviso-instala" id="avInstala" hidden></div>
+    <div class="avatares" id="listaAvatares"></div>
+    <div class="rodape"><button class="btn" data-ir="tTitulo">Voltar</button><button class="btn" id="avImportar">Importar avatar</button><input type="file" id="avArquivo" accept=".txt,.json,text/plain,application/json" hidden><button class="btn grande pri" id="avNovo">Novo avatar</button></div></div>
+</section>
+
+<section class="tela" id="tAvatarEdit" hidden>
+  <div class="painel"><h2 id="edTitulo">Novo avatar</h2>
+    <form id="edForm" class="form-avatar" autocomplete="off">
+      <div class="ed-topo"><div id="edImagem"></div><div class="cores" id="edCores" role="radiogroup" aria-label="Cor do Tiriri"></div></div>
+      <label class="linha"><span>Apelido<small>Obrigatório. Use um apelido, não o nome completo.</small></span><input type="text" id="edApelido" maxlength="20" required></label>
+      <label class="linha"><span>Idade<small>Opcional.</small></span><input type="number" id="edIdade" min="2" max="18" inputmode="numeric"></label>
+      <label class="linha"><span>Início do tratamento<small>Opcional.</small></span><input type="date" id="edInicio"></label>
+      <label class="linha"><span>Exercício sem microfone<small>Para crianças que ainda não falam: o exercício abre direto na nota pela observação.</small></span><input type="checkbox" id="edSemMic"></label>
+      <div class="ed-acoes" id="edAcoes" hidden><button type="button" class="btn" id="edBaixar">Baixar registro</button><button type="button" class="btn" id="edCompartilhar">Compartilhar registro</button></div>
+      <div class="rodape"><button type="button" class="btn" id="edVoltar">Voltar</button><button type="submit" class="btn grande pri" id="edSalvar">Salvar</button></div>
+    </form></div>
+</section>
+
+<section class="tela" id="tHistorico" hidden>
+  <div class="painel largo historico"><div class="hist-topo" id="hiTopo"></div>
+    <div class="abas" role="tablist" id="hiAbas"><button class="aba" data-p="semana" role="tab">Semana</button><button class="aba" data-p="mes" role="tab">Mês</button><button class="aba" data-p="inicio" role="tab">Desde o início</button></div>
+    <div id="hiCorpo"></div>
+    <div class="rodape"><button class="btn" id="hiVoltar">Voltar</button><button class="btn" id="hiCompartilhar">Compartilhar PDF</button><button class="btn grande pri" id="hiBaixar">Baixar relatório</button></div></div>
+</section>
+
+<section class="tela" id="tRelatorio" hidden>
+  <div class="painel"><h2>Relatório da partida</h2>
+    <div id="reResumo"></div>
+    <label class="linha"><span>Apelido<small>Aparece no relatório.</small></span><input type="text" id="reApelido" maxlength="20" placeholder="Sem apelido"></label>
+    <label class="campo-obs"><span>Observações do fonoaudiólogo</span><textarea id="reObs" rows="4" maxlength="1500" placeholder="Opcional"></textarea></label>
+    <div class="rodape"><button class="btn" id="reVoltar">Voltar</button><button class="btn" id="reCompartilhar">Compartilhar</button><button class="btn grande pri" id="reBaixar">Baixar PDF</button></div></div>
+</section>
+
+<section class="tela escura" id="tConfirma" hidden>
+  <div class="painel estreito"><h2 id="coTitulo">Tem certeza?</h2><p id="coTexto" class="fraco"></p><div class="coluna" id="coBotoes"></div></div>
 </section>
 
 <section class="tela" id="tPista" hidden>
@@ -98,7 +139,7 @@
   <div class="painel"><h2 id="fimTit"></h2><p id="fimSub" class="fraco"></p>
     <div class="fim-bola"><div id="fimBola"></div><div><b id="fimPontos"></b><span>tamanho da bola</span><div class="medalhas" id="fimMedalhas"></div></div></div>
     <div class="fim-palavras" id="fimPalavras"></div>
-    <div class="rodape"><button class="btn" id="fMenu">Voltar ao menu</button><button class="btn grande pri" id="fDeNovo">Jogar de novo</button></div></div>
+    <div class="rodape"><button class="btn" id="fMenu">Voltar ao menu</button><button class="btn" id="fRelatorio">Relatório</button><button class="btn grande pri" id="fDeNovo">Jogar de novo</button></div></div>
 </section>
 
 <!-- exercício de fala -->
@@ -118,6 +159,7 @@
 <!-- ajustes -->
 <section class="tela escura" id="tAjustes" hidden>
   <div class="painel rolavel"><h2>Ajustes</h2>
+    <div class="aj-avatar" id="ajAvatar" hidden></div>
     <h3>Som</h3>
     <label class="linha"><span>Voz da Dálete<small>Instruções, modelos de fala e incentivos.</small></span><input type="range" id="aVolVoz" min="0" max="1" step="0.05"></label>
     <label class="linha"><span>Música</span><input type="range" id="aVolMus" min="0" max="1" step="0.05"></label>
@@ -130,7 +172,6 @@
       <select id="aAvalia"><option value="fono">Fonoaudiólogo dá a nota</option><option value="livre">Sem análise (uso em casa)</option><option value="auto" disabled>Automático (em breve)</option></select></label>
     <label class="linha"><span>Retomada sem contagem<small>Depois do exercício, a corrida volta em 1 segundo, sem o 3, 2, 1.</small></span><input type="checkbox" id="aRetomada"></label>
     <label class="linha"><span>Exercício rápido<small>Para testar a pista: o exercício vira um toque só.</small></span><input type="checkbox" id="aRapido"></label>
-    <label class="linha"><span>Nome do avatar<small>Aparecerá no relatório. Opcional.</small></span><input type="text" id="aNome" maxlength="20" placeholder="Sem nome"></label>
     <h3>Imagem</h3>
     <label class="linha"><span>Qualidade<small>O modo automático reduz a resolução se o aparelho ficar lento.</small></span>
       <select id="aQual"><option value="auto">Automática</option><option value="alta">Alta</option><option value="baixa">Baixa</option></select></label>

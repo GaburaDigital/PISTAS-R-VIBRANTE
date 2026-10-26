@@ -175,3 +175,58 @@ button{cursor:pointer;touch-action:manipulation}
 .ex-vez{display:flex;align-items:center;gap:.4em;font-weight:900;font-size:1.25rem;padding:.3em 1em;border-radius:99px;background:rgba(57,198,255,.2);color:var(--azul)}
 .ex-vez.sua{background:rgba(255,210,63,.22);color:var(--sol);animation:pulsa .9s ease-in-out infinite alternate}
 @keyframes pulsa{to{transform:scale(1.06)}}
+
+/* ---------- avatares ---------- */
+.avatar-btn{display:flex;align-items:center;justify-content:center;gap:.5em}
+.avatar-btn .tiriri{width:34px;height:34px;margin:-6px 0}
+.avatares{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.8rem}
+.av-cartao{background:rgba(255,255,255,.1);border:3px solid transparent;border-radius:20px;padding:.8rem;display:flex;flex-direction:column;gap:.5rem}
+.av-cartao.ativo{border-color:var(--sol)}
+.av-cab{display:flex;gap:.7rem;align-items:center}.av-cab .tiriri{width:72px;height:72px;flex:none}
+.av-cab b{font-size:1.25rem;display:block;line-height:1.1}.av-cab small{display:block;opacity:.85;font-size:.82rem}
+.av-acoes{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}.av-acoes .btn{min-height:42px;padding:.4em .6em;font-size:.92rem}
+.av-acoes .btn.pri{grid-column:1/-1}
+.av-acoes .perigo{background:#ffd9df;color:#9b1030}
+.av-backup{font-size:.8rem;font-weight:800;background:rgba(255,210,63,.2);color:var(--sol);border-radius:10px;padding:.3em .6em}
+.av-vazio{text-align:center;padding:1.5rem;opacity:.9;grid-column:1/-1}
+.aviso-instala{background:rgba(57,198,255,.16);border:2px solid var(--azul);border-radius:14px;padding:.6rem .8rem;margin-bottom:.8rem;font-size:.92rem}
+.form-avatar input[type=number],.form-avatar input[type=date],#reApelido{background:#fff;color:var(--tinta);border:0;border-radius:10px;padding:.45em .6em;max-width:52%;font-weight:800;min-height:42px;-webkit-user-select:text;user-select:text}
+.ed-topo{display:flex;align-items:center;gap:1rem;justify-content:center;margin-bottom:.4rem;flex-wrap:wrap}
+.ed-topo .tiriri{width:96px;height:96px}
+.cores{display:flex;gap:.45rem;flex-wrap:wrap}
+.cores button{width:40px;height:40px;border-radius:50%;border:3px solid #fff;padding:0;box-shadow:0 3px 0 rgba(0,0,0,.3)}
+.cores button[aria-checked=true]{outline:4px solid var(--sol);outline-offset:2px}
+.ed-acoes{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem}
+.aj-avatar{display:flex;align-items:center;gap:.7rem;background:rgba(255,255,255,.1);border-radius:16px;padding:.5rem .8rem;margin-bottom:.4rem;flex-wrap:wrap}
+.aj-avatar .tiriri{width:44px;height:44px}.aj-avatar span{flex:1;font-weight:800;min-width:140px}.aj-avatar small{display:block;font-weight:600;opacity:.8}
+/* ---------- histórico ---------- */
+.historico{max-width:980px}
+.hist-topo{display:flex;align-items:center;gap:.8rem;margin-bottom:.6rem}.hist-topo .tiriri{width:64px;height:64px;flex:none}
+.hist-topo h2{margin:0;text-align:left}.hist-topo small{display:block;opacity:.85}
+.abas{display:flex;gap:.4rem;background:rgba(0,0,0,.2);padding:4px;border-radius:999px;width:max-content;max-width:100%;margin-bottom:.8rem}
+.aba{border:0;border-radius:999px;padding:.45em 1em;font-weight:900;background:none;color:#fff;min-height:42px}
+.aba[aria-selected=true]{background:var(--sol);color:var(--tinta)}
+.ladrilhos{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.5rem;margin-bottom:.8rem}
+.ladrilho{background:#fff;color:var(--tinta);border-radius:14px;padding:.55rem .7rem}
+.ladrilho b{display:block;font-size:1.6rem;line-height:1.1;color:#2a1458}.ladrilho span{font-size:.8rem;color:#52514e;font-weight:700}
+.graficos{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.7rem;margin-bottom:.8rem}
+.grafico{background:#fff;color:var(--tinta);border-radius:14px;padding:.6rem .7rem .5rem;position:relative}
+.grafico h4{margin:0;font-size:.98rem}.grafico p{margin:0 0 .3rem;font-size:.76rem;color:#52514e}
+.grafico canvas{width:100%;height:auto;display:block;touch-action:pan-y}
+.legenda{display:flex;gap:.8rem;font-size:.76rem;font-weight:700;color:#52514e;margin-bottom:.2rem}.legenda i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.dica{position:absolute;background:var(--tinta);color:#fff;font-size:.78rem;font-weight:700;padding:.25em .55em;border-radius:8px;pointer-events:none;white-space:nowrap;z-index:2}
+.hist-tab{width:100%;border-collapse:collapse;background:#fff;color:var(--tinta);border-radius:14px;overflow:hidden;font-size:.88rem;margin-bottom:.8rem}
+.hist-tab th{background:#2a1458;color:#fff;text-align:left;padding:.45em .6em;font-size:.8rem}
+.hist-tab td{padding:.4em .6em;border-top:1px solid #ebe7f0}
+.hist-tab .btn{min-height:36px;padding:.25em .8em;font-size:.82rem;box-shadow:0 3px 0 rgba(0,0,0,.2);background:#f4effb}
+.nota{display:inline-block;min-width:2em;text-align:center;border-radius:99px;color:#fff;font-weight:900;padding:0 .4em}
+.historico h3{color:var(--azul);margin:.6rem 0 .4rem}
+.vazio-hist{background:rgba(255,255,255,.1);border-radius:14px;padding:1rem;text-align:center}
+.tabela-rolagem{overflow-x:auto;touch-action:pan-x pan-y}
+/* ---------- relatório da partida ---------- */
+.campo-obs{display:block;font-weight:800;padding:.45rem 0}.campo-obs textarea{width:100%;margin-top:.3rem;border-radius:12px;border:0;padding:.6em;font:inherit;font-weight:600;color:var(--tinta);-webkit-user-select:text;user-select:text;resize:vertical}
+.re-palavras{display:flex;flex-wrap:wrap;gap:.35rem;margin:.3rem 0 .6rem}
+.re-palavras span{background:#fff;color:var(--tinta);border-radius:99px;padding:.1em .6em;font-weight:800;font-size:.86rem;display:flex;align-items:center;gap:.35em}
+@media(max-width:560px){.av-cab .tiriri{width:58px;height:58px}.graficos{grid-template-columns:1fr}.rodape .btn{flex:1 1 auto}}
+.btn.perigo-forte{background:#d00000;color:#fff}
+@media(max-width:700px){.tela:not(#tAbertura):not(#tTitulo){padding-top:calc(64px + var(--sa-t))}.painel{max-height:calc(100dvh - 78px - var(--sa-t) - var(--sa-b))}.hist-tab td,.hist-tab th{padding:.35em .4em}.so-largo{display:none}}
